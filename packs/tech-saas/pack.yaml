@@ -1,0 +1,66 @@
+# Content pack: tech SaaS / developer-tools 口播楔子
+id: tech-saas
+version: "0.2.0"
+customer_profile: tech_saas
+
+skills_enabled:
+  - tech-saas-content
+  - short-video-director
+  - short-video-researcher
+  - github-star-growth-video
+  - hiring-insight-cards
+  - deep-analysis-video
+
+skills_optional:
+  - web-video-presentation
+  - ffmpeg-motion-cards
+  - demo-echo
+
+# Built-in template ids (pipeline.VIDEO_TEMPLATES) + optional overrides
+templates:
+  - id: product_update
+    label: 产品更新
+    hint: 15s 停滑：这周上了什么 → 谁该关心 → 怎么试
+    content_angle: intro
+    target_seconds: 15
+    bg_theme: studio
+    roles: [hook, value, steps, cta]
+    placeholder_topic: 本周产品更新：…
+  - id: tech_rant
+    label: 技术吐槽 / 观点
+    hint: 15s 观点：信号 → 判断 → 误区 → CTA
+    content_angle: idea
+    target_seconds: 15
+    bg_theme: dawn
+    roles: [hook, pain, thesis, cta]
+    placeholder_topic: 吐槽 / 观点：…
+  - id: tutorial
+    label: 教程口播
+    hint: 约 90s：是什么 → 三步上手 → 一个坑
+    content_angle: intro
+    target_seconds: 90
+    bg_theme: night
+    roles: [hook, pain, context, steps, pitfall, cta]
+    placeholder_topic: 教程：从零跑通 …
+
+defaults:
+  platform_priority:
+    - douyin
+    - weixin
+  video:
+    target_seconds: 15
+    default_template_id: product_update
+    render_path: l0_then_l1
+    bg_theme: studio
+  cards:
+    default_category: hiring_insight
+  weekly:
+    min_shippable: 2
+    review_weekday: friday
+
+cost_estimates_cny:
+  l0_scene: 0.05
+  l1_scene: 2.5
+  card_compose: 0.3
+  llm_chat_turn: 0.02
+  publish_attempt: 0
