@@ -1,0 +1,21 @@
+-- Workbench tables are created via InsForge Tables API (recommended).
+-- Reserved auto fields: id (uuid), created_at, updated_at.
+--
+-- Tables:
+--   wb_sessions(user_id, title, system_prompt, model, agent_state json)
+--   wb_messages(session_id, role, content, tool_calls jsonb)
+--   wb_skill_bindings(user_id, skill_id, enabled)
+--   wb_user_prefs(user_id unique, default_audience, default_voice,
+--                 default_content_angle, default_platform, recent_topics json,
+--                 llm_mode, llm_model)
+--   wb_media_objects(user_id, storage_path, mime)
+--   wb_card_history(user_id, email, owner_key, card_id, edition, category,
+--                   mode, title, payload json)
+--   wb_content_projects(user_id, email, owner_key, project_id, topic,
+--                       short_topic, category, status, payload json)
+--
+-- Use: python scripts/ensure_workbench_tables.py
+-- After creating tables outside InsForge API, restart PostgREST:
+--   docker restart pgrst
+
+SELECT 'use scripts/ensure_workbench_tables.py' AS hint;

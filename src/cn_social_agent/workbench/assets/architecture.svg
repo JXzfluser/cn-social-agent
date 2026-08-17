@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540" role="img" aria-labelledby="title desc">
+  <title id="title">CN Workbench Architecture</title>
+  <desc id="desc">Browser to Workbench to InsForge API, console, PostgREST and Postgres</desc>
+  <rect width="960" height="540" fill="#f4f1eb"/>
+  <text x="40" y="48" font-family="IBM Plex Sans, Noto Sans SC, sans-serif" font-size="28" font-weight="700" fill="#1c1917">CN Workbench ��</text>
+  <text x="40" y="76" font-family="IBM Plex Sans, Noto Sans SC, sans-serif" font-size="14" fill="#78716c">Agent � �Ƒ � ��aG � ���t � InsForge-first</text>
+
+  <rect x="40" y="120" width="160" height="88" rx="12" fill="#fffcf7" stroke="#e7e5e4"/>
+  <text x="120" y="158" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="15" font-weight="700" fill="#1c1917">O�h</text>
+  <text x="120" y="182" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#78716c">Workbench UI</text>
+
+  <path d="M200 164 H250" stroke="#0f766e" stroke-width="2.5" fill="none"/>
+  <polygon points="250,164 242,159 242,169" fill="#0f766e"/>
+
+  <rect x="250" y="110" width="220" height="108" rx="12" fill="#ecfdf5" stroke="#0f766e" stroke-width="2"/>
+  <text x="360" y="150" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="15" font-weight="700" fill="#0f766e">Workbench :18081</text>
+  <text x="360" y="174" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#475569">aiohttp � Agent � Tools</text>
+  <text x="360" y="196" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#475569">h@ LLM � s�Mn</text>
+
+  <path d="M470 145 H540" stroke="#0f766e" stroke-width="2.5" fill="none"/>
+  <polygon points="540,145 532,140 532,150" fill="#0f766e"/>
+  <path d="M470 185 H540 540 280" stroke="#a8a29e" stroke-width="1.8" fill="none"/>
+
+  <rect x="540" y="110" width="240" height="70" rx="12" fill="#fffcf7" stroke="#e7e5e4"/>
+  <text x="660" y="140" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="700" fill="#1c1917">InsForge API :7130</text>
+  <text x="660" y="162" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#78716c">Auth � AI Gateway � Secrets</text>
+
+  <rect x="540" y="210" width="240" height="70" rx="12" fill="#fffcf7" stroke="#e7e5e4"/>
+  <text x="660" y="240" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="700" fill="#1c1917">�6� :7131</text>
+  <text x="660" y="262" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#78716c">Vite Dashboard</text>
+
+  <path d="M660 180 V210" stroke="#a8a29e" stroke-width="1.8"/>
+  <path d="M660 280 V320" stroke="#a8a29e" stroke-width="1.8"/>
+
+  <rect x="540" y="320" width="110" height="70" rx="12" fill="#fffcf7" stroke="#e7e5e4"/>
+  <text x="595" y="350" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="13" font-weight="700" fill="#1c1917">PostgREST</text>
+  <text x="595" y="372" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#78716c">:5434</text>
+
+  <rect x="670" y="320" width="110" height="70" rx="12" fill="#fffcf7" stroke="#e7e5e4"/>
+  <text x="725" y="350" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="13" font-weight="700" fill="#1c1917">Postgres</text>
+  <text x="725" y="372" text-anchor="middle" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#78716c">:5433</text>
+
+  <path d="M595 390 H725" stroke="#a8a29e" stroke-width="1.8"/>
+
+  <rect x="40" y="280" width="430" height="180" rx="12" fill="#fffcf7" stroke="#e7e5e4"/>
+  <text x="60" y="316" font-family="IBM Plex Sans, sans-serif" font-size="14" font-weight="700" fill="#1c1917">�*!</text>
+  <text x="60" y="348" font-family="IBM Plex Sans, sans-serif" font-size="13" fill="#0f766e">Agent  �� � GitHub � ��n� � aG</text>
+  <text x="60" y="376" font-family="IBM Plex Sans, sans-serif" font-size="13" fill="#0f766e">�Ƒ  \ � TTS � G</text>
+  <text x="60" y="404" font-family="IBM Plex Sans, sans-serif" font-size="13" fill="#0f766e">��aG  b�� � ��/4a�</text>
+  <text x="60" y="432" font-family="IBM Plex Sans, sans-serif" font-size="13" fill="#0f766e">���t  ,!n���</text>
+
+  <text x="40" y="510" font-family="IBM Plex Sans, sans-serif" font-size="12" fill="#a8a29e">Workbench http://127.0.0.1:18081 � Console http://127.0.0.1:7131</text>
+</svg>

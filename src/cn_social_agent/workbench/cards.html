@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0;url=/?mode=card" />
+  <title>Redirecting…</title>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const id = q.get("id");
+    location.replace(id ? ("/?mode=card&id=" + encodeURIComponent(id)) : "/?mode=card");
+  </script>
+</head>
+<body>
+  <p>知识卡片已并入主工作台，正在跳转… <a href="/?mode=card">点击进入</a></p>
+</body>
+</html>

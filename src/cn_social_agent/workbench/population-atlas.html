@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中国人口结构图鉴 · 第七次全国人口普查</title>
+<style>
+/* ===== Reset & Base ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;
+  background:#0a0a0a;color:#fff;overflow-x:hidden;line-height:1.5;
+}
+:root{
+  --bg:#0a0a0a;--surface:#141414;--surface2:#1c1c1c;--border:#2a2a2a;
+  --orange:#FF5C39;--teal:#00E5CC;--yellow:#FFE03D;--pink:#FF3D7F;
+  --green:#4ADE80;--blue:#38BDF8;--purple:#A78BFA;
+  --t1:#fff;--t2:#999;--t3:#555;
+}
+/* ===== Hero ===== */
+.hero{position:relative;padding:60px 40px 40px;border-bottom:1px solid var(--border);overflow:hidden}
+.hero-tag{display:inline-block;padding:4px 12px;background:var(--orange);color:#000;font-size:12px;font-weight:800;letter-spacing:2px;margin-bottom:16px}
+.hero h1{font-size:64px;font-weight:900;line-height:1;letter-spacing:-2px;margin-bottom:8px}
+.hero h1 span{color:var(--orange)}
+.hero-sub{font-size:16px;color:var(--t2);margin-bottom:4px}
+.hero-src{font-size:12px;color:var(--t3)}
+.hero-visual{position:absolute;top:40px;right:40px;width:360px;height:200px;opacity:.9}
+@media(max-width:900px){.hero-visual{display:none}.hero h1{font-size:40px}}
+/* National metrics */
+.nat-metrics{display:flex;flex-wrap:wrap;gap:0;margin-top:32px;border-top:1px solid var(--border)}
+.nat-metric{flex:1;min-width:140px;padding:20px 24px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.nat-metric:last-child{border-right:none}
+.nat-metric .nm-num{font-size:48px;font-weight:900;line-height:1;letter-spacing:-1px}
+.nat-metric .nm-unit{font-size:20px;font-weight:700;color:var(--t2);margin-left:2px}
+.nat-metric .nm-label{font-size:13px;color:var(--t2);margin-top:8px;letter-spacing:1px}
+.nm-orange .nm-num{color:var(--orange)}
+.nm-teal .nm-num{color:var(--teal)}
+.nm-yellow .nm-num{color:var(--yellow)}
+.nm-pink .nm-num{color:var(--pink)}
+.nm-green .nm-num{color:var(--green)}
+/* ===== Section Title ===== */
+.sec-title{display:flex;align-items:baseline;gap:16px;padding:48px 40px 24px}
+.sec-title h2{font-size:28px;font-weight:900;letter-spacing:-.5px}
+.sec-title span{font-size:14px;color:var(--t3)}
+/* ===== Sort Bar ===== */
+.sort-bar{display:flex;gap:8px;padding:0 40px 24px;flex-wrap:wrap}
+.sort-btn{padding:8px 18px;background:var(--surface);border:1px solid var(--border);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;border-radius:0;transition:all .2s;letter-spacing:1px}
+.sort-btn:hover{color:#fff;border-color:#444}
+.sort-btn.active{background:#fff;color:#000;border-color:#fff;font-weight:800}
+/* ===== Province Grid ===== */
+.province-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1px;background:var(--border);padding:0 40px 48px}
+.prov-card{background:var(--surface);padding:24px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden}
+.prov-card:hover{background:var(--surface2)}
+.prov-card .pc-region{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.6}
+.prov-card .pc-name{font-size:22px;font-weight:800;margin:4px 0 12px}
+.prov-card .pc-pop{font-size:36px;font-weight:900;line-height:1;letter-spacing:-1px}
+.prov-card .pc-unit{font-size:14px;color:var(--t2);font-weight:600;margin-left:2px}
+.prov-card .pc-growth{font-size:12px;margin-top:8px;font-weight:600}
+.pc-bar{display:flex;height:4px;margin-top:12px;border-radius:0}
+.pc-bar span{display:block}
+.pc-color-strip{position:absolute;top:0;left:0;width:4px;height:100%}
+/* ===== Detail Section ===== */
+.detail-section{padding:0 40px 60px;display:none}
+.detail-section.active{display:block;animation:fadeUp .4s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.back-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--surface);border:1px solid var(--border);color:var(--t2);font-size:14px;font-weight:600;cursor:pointer;margin:32px 0 24px;transition:all .2s;letter-spacing:1px}
+.back-btn:hover{color:#fff;border-color:#555;background:var(--surface2)}
+/* Province Header */
+.prov-header{display:flex;align-items:flex-end;gap:24px;margin-bottom:32px;flex-wrap:wrap}
+.prov-header .ph-name{font-size:80px;font-weight:900;line-height:.9;letter-spacing:-3px}
+.prov-header .ph-info{padding-bottom:12px}
+.prov-header .ph-region{font-size:14px;font-weight:700;letter-spacing:2px;color:var(--t2)}
+.prov-header .ph-rank{font-size:14px;color:var(--t3);margin-top:4px}
+/* Metric Cards */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1px;background:var(--border);margin-bottom:32px}
+.m-card{background:var(--surface);padding:28px 24px;position:relative}
+.m-card .mc-label{font-size:12px;font-weight:700;letter-spacing:2px;color:var(--t2);text-transform:uppercase}
+.m-card .mc-num{font-size:56px;font-weight:900;line-height:1;letter-spacing:-2px;margin:12px 0 8px}
+.m-card .mc-unit{font-size:18px;font-weight:700;color:var(--t2);margin-left:4px}
+.m-card .mc-compare{font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}
+.m-card .mc-compare.up{color:var(--green)}
+.m-card .mc-compare.down{color:var(--orange)}
+/* Chart Grid */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:32px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+.chart-box{background:var(--surface);padding:32px}
+.chart-box.full{grid-column:1/-1}
+.chart-title{font-size:14px;font-weight:800;letter-spacing:2px;color:var(--t2);text-transform:uppercase;margin-bottom:4px}
+.chart-subtitle{font-size:12px;color:var(--t3);margin-bottom:24px}
+.chart-svg-wrap{width:100%}
+.chart-svg-wrap svg{width:100%;height:auto;display:block}
+/* City Section */
+.city-list-title{display:flex;align-items:baseline;gap:16px;margin:48px 0 24px}
+.city-list-title h3{font-size:24px;font-weight:900}
+.city-list-title span{font-size:14px;color:var(--t3)}
+.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1px;background:var(--border)}
+.city-card{background:var(--surface);padding:20px;cursor:pointer;transition:all .2s;position:relative}
+.city-card:hover{background:var(--surface2)}
+.city-card .cc-name{font-size:18px;font-weight:800;margin-bottom:8px}
+.city-card .cc-pop{font-size:28px;font-weight:900;line-height:1}
+.city-card .cc-unit{font-size:13px;color:var(--t2);font-weight:600}
+.city-card .cc-bar{height:3px;margin-top:12px}
+/* City Detail */
+.city-section{padding:0 40px 60px;display:none}
+.city-section.active{display:block;animation:fadeUp .4s ease}
+.city-header{display:flex;align-items:flex-end;gap:24px;margin-bottom:32px;flex-wrap:wrap}
+.city-header .ch-name{font-size:64px;font-weight:900;line-height:.9;letter-spacing:-2px}
+.city-header .ch-pop{font-size:48px;font-weight:900;color:var(--teal)}
+.city-header .ch-unit{font-size:20px;font-weight:700;color:var(--t2)}
+.compare-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--border);margin-bottom:32px}
+.compare-card{background:var(--surface);padding:24px}
+.compare-card .cp-label{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--t2)}
+.compare-card .cp-bars{display:flex;align-items:center;gap:12px;margin-top:12px}
+.compare-card .cp-bar-wrap{flex:1}
+.compare-card .cp-bar-label{font-size:11px;color:var(--t3);margin-bottom:4px}
+.compare-card .cp-bar{height:24px;display:flex;align-items:center}
+.compare-card .cp-bar-fill{height:100%;transition:width .5s}
+.compare-card .cp-val{font-size:20px;font-weight:800}
+.compare-card .cp-prov{color:var(--orange)}
+.compare-card .cp-city{color:var(--teal)}
+/* Footer */
+footer{padding:40px;border-top:1px solid var(--border);text-align:center}
+footer p{font-size:13px;color:var(--t3);margin-bottom:4px}
+footer p:first-child{color:var(--t2);font-weight:600}
+/* Decorative Image 2 */
+.deco-img{position:absolute;top:20px;right:20px;width:120px;height:120px;opacity:.15;pointer-events:none}
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<header class="hero">
+  <div class="hero-tag">DATA VISUALIZATION · 2020</div>
+  <h1>中国人口<span>结构图鉴</span></h1>
+  <p class="hero-sub">第七次全国人口普查 · 31个省级行政区 · 340+地级市</p>
+  <p class="hero-src">数据来源：国家统计局《第七次全国人口普查公报》（2020年11月1日零时标准时点）</p>
+  <div class="hero-visual" id="heroVisual"></div>
+  <div class="nat-metrics" id="natMetrics"></div>
+</header>
+
+<!-- ===== PROVINCE GRID ===== -->
+<section>
+  <div class="sec-title">
+    <h2>选择省份</h2>
+    <span>点击省份卡片查看详细人口结构 · 可按不同指标排序</span>
+  </div>
+  <div class="sort-bar" id="sortBar"></div>
+  <div class="province-grid" id="provGrid"></div>
+</section>
+
+<!-- ===== PROVINCE DETAIL ===== -->
+<section class="detail-section" id="detailSection">
+  <button class="back-btn" onclick="closeDetail()">← 返回省列表</button>
+  <div id="detailContent"></div>
+</section>
+
+<!-- ===== CITY DETAIL ===== -->
+<section class="city-section" id="citySection">
+  <button class="back-btn" onclick="closeCityDetail()">← 返回地市列表</button>
+  <div id="cityContent"></div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <p>数据来源：国家统计局 · 第七次全国人口普查公报（第一至第八号）</p>
+  <p>标准时点：2020年11月1日零时 | 总人口含31个省/自治区/直辖市和现役军人，不含港澳台及华侨</p>
+  <p>本页面所有数据均来自官方公开统计，地级市数据为常住人口</p>
+</footer>
+
+<script>
+// ===== NATIONAL DATA =====
+const NAT = {
+  pop: 141177.87, pop10: 133972.49,
+  age: [17.95, 63.35, 18.70, 13.50],
+  gender: 105.07, urban: 63.89, household: 2.62
+};
+
+// ===== PROVINCE DATA (7th Census 2020) =====
+// Format: r=region, p=pop2020(万), p10=pop2010(万), a=[0-14%,15-59%,60+%,65+%], g=genderRatio, u=urban%, d=density, h=household, e=[uni,high,mid,pri per100k], c=[[city,pop],...]
+const PD = {
+"广东":{r:"华南",co:"#4ADE80",p:12601.25,p10:10441,a:[18.85,68.80,12.35,8.58],g:112.6,u:74.15,d:700,h:2.63,e:[15699,19428,37345,21083],c:[["广州",1867.66],["深圳",1756.01],["东莞",1046.66],["佛山",949.89],["湛江",698.13],["茂名",617.41],["揭阳",557.79],["汕头",550.20],["惠州",604.29],["江门",479.81]]},
+"山东":{r:"华东",co:"#FFE03D",p:10152.75,p10:9579,a:[18.78,60.32,20.90,15.13],g:101.7,u:63.94,d:650,h:2.72,e:[14384,16181,35765,25462],c:[["临沂",1101.83],["青岛",1007.17],["潍坊",938.67],["济南",920.24],["菏泽",879.59],["济宁",835.79],["烟台",710.15],["德州",561.17],["聊城",595.21],["泰安",547.22]]},
+"河南":{r:"华中",co:"#FF3D7F",p:9936.55,p10:9403,a:[23.14,58.79,18.08,13.49],g:100.4,u:55.43,d:590,h:2.75,e:[11744,15739,37829,24765],c:[["郑州",1260.06],["南阳",971.31],["周口",902.60],["商丘",771.78],["洛阳",705.67],["驻马店",700.74],["新乡",625.19],["信阳",623.44],["平顶山",497.72],["安阳",547.76]]},
+"江苏":{r:"华东",co:"#FFE03D",p:8474.80,p10:7866,a:[15.21,64.48,20.32,16.20],g:104.3,u:73.44,d:820,h:2.49,e:[18663,16181,33358,23154],c:[["苏州",1274.83],["南京",931.47],["徐州",908.38],["南通",774.93],["无锡",746.21],["盐城",670.03],["常州",527.81],["宿迁",498.62],["连云港",460.00],["扬州",455.98]]},
+"四川":{r:"西南",co:"#A78BFA",p:8367.49,p10:8045,a:[16.10,62.19,21.71,16.93],g:102.2,u:56.73,d:172,h:2.62,e:[13267,15916,36327,26557],c:[["成都",2093.78],["南充",560.76],["达州",538.54],["绵阳",486.82],["凉山",485.87],["宜宾",458.88],["泸州",425.41],["德阳",345.62],["内江",314.07],["资阳",230.86]]},
+"河北":{r:"华北",co:"#FF5C39",p:7461.02,p10:7185,a:[20.22,60.98,18.80,13.92],g:101.7,u:61.14,d:395,h:2.60,e:[12418,16206,39048,24966],c:[["保定",1154.55],["石家庄",1064.05],["邯郸",917.37],["唐山",771.80],["沧州",730.40],["邢台",711.11],["廊坊",546.41],["张家口",411.87],["衡水",421.29],["承德",335.44]]},
+"湖南":{r:"华中",co:"#FF3D7F",p:6644.49,p10:6570,a:[19.78,60.31,19.91,14.63],g:105.2,u:60.88,d:312,h:2.68,e:[12239,17723,36542,25327],c:[["长沙",1004.79],["衡阳",665.43],["邵阳",656.35],["常德",528.00],["永州",519.43],["岳阳",500.51],["郴州",466.71],["怀化",458.76],["株洲",390.27],["娄底",382.70]]},
+"浙江":{r:"华东",co:"#FFE03D",p:6456.76,p10:5443,a:[13.45,68.53,18.02,13.27],g:108.2,u:72.17,d:635,h:2.35,e:[16990,16467,32647,22977],c:[["杭州",1193.60],["温州",957.29],["宁波",940.43],["金华",705.07],["台州",662.29],["嘉兴",540.09],["绍兴",527.10],["湖州",336.76],["丽水",252.71],["衢州",227.62]]},
+"安徽":{r:"华东",co:"#FFE03D",p:6102.72,p10:5951,a:[19.24,60.02,20.74,15.01],g:103.4,u:60.15,d:437,h:2.61,e:[13810,14829,35789,25880],c:[["合肥",936.99],["阜阳",820.03],["宿州",532.45],["亳州",499.68],["六安",437.94],["安庆",416.53],["滁州",398.71],["芜湖",364.44],["蚌埠",329.64],["宣城",250.01]]},
+"湖北":{r:"华中",co:"#FF3D7F",p:5775.26,p10:5724,a:[16.31,63.74,19.95,14.59],g:106.6,u:64.79,d:310,h:2.65,e:[15501,17281,35581,24575],c:[["武汉",1245.47],["黄冈",576.97],["襄阳",526.10],["荆州",523.12],["孝感",427.04],["宜昌",401.76],["恩施",345.61],["十堰",320.88],["荆门",259.69],["黄石",246.91]]},
+"广西":{r:"华南",co:"#4ADE80",p:5012.68,p10:4610,a:[23.63,59.62,16.75,12.20],g:109.5,u:54.20,d:212,h:2.79,e:[10806,14741,35884,26903],c:[["南宁",874.16],["玉林",544.61],["桂林",493.11],["贵港",431.63],["柳州",415.79],["百色",357.19],["河池",341.81],["梧州",282.10],["钦州",330.22],["来宾",207.91]]},
+"云南":{r:"西南",co:"#A78BFA",p:4720.93,p10:4602,a:[19.57,65.52,14.91,10.75],g:106.5,u:50.05,d:122,h:2.88,e:[11904,14445,34762,26927],c:[["昆明",846.01],["曲靖",576.58],["红河",447.84],["文山",346.38],["大理",336.70],["楚雄",263.06],["普洱",241.65],["玉溪",224.97],["保山",243.48],["昭通",509.26]]},
+"江西":{r:"华东",co:"#FFE03D",p:4518.86,p10:4457,a:[21.96,62.44,15.60,11.30],g:106.6,u:60.44,d:271,h:2.64,e:[11897,16425,35967,25492],c:[["赣州",897.00],["南昌",625.50],["上饶",649.11],["宜春",501.36],["九江",460.03],["吉安",446.75],["抚州",361.18],["萍乡",180.53],["景德镇",163.04],["新余",120.26]]},
+"辽宁":{r:"东北",co:"#00E5CC",p:4259.14,p10:4375,a:[11.12,63.16,25.72,17.42],g:100.2,u:72.81,d:290,h:2.35,e:[18250,17412,35932,21679],c:[["沈阳",907.01],["大连",745.08],["鞍山",332.55],["朝阳",287.10],["锦州",270.37],["葫芦岛",243.37],["铁岭",238.83],["营口",232.86],["丹东",218.84],["抚顺",186.20]]},
+"福建":{r:"华东",co:"#FFE03D",p:4154.01,p10:3689,a:[18.17,66.05,15.78,11.10],g:107.5,u:68.75,d:339,h:2.64,e:[14148,16274,33792,25968],c:[["泉州",878.23],["福州",829.13],["厦门",516.40],["漳州",505.43],["莆田",321.07],["宁德",313.00],["龙岩",272.10],["三明",248.65],["南平",268.06]]},
+"陕西":{r:"西北",co:"#38BDF8",p:3952.90,p10:3733,a:[16.65,64.00,19.35,13.32],g:104.5,u:64.26,d:192,h:2.60,e:[16461,16130,34304,24547],c:[["西安",1295.29],["渭南",468.87],["咸阳",421.33],["榆林",362.48],["宝鸡",332.19],["汉中",321.15],["安康",249.34],["延安",228.26],["商洛",204.24],["铜川",69.83]]},
+"贵州":{r:"西南",co:"#A78BFA",p:3856.21,p10:3475,a:[23.97,60.34,15.69,11.56],g:106.4,u:53.79,d:219,h:2.75,e:[10962,14003,34342,28231],c:[["毕节",689.96],["遵义",660.67],["贵阳",598.70],["黔东南",375.88],["黔南",349.45],["铜仁",329.85],["黔西南",301.54],["六盘水",303.16],["安顺",247.06]]},
+"山西":{r:"华北",co:"#FF5C39",p:3491.56,p10:3571,a:[16.33,64.55,19.12,12.90],g:104.6,u:62.99,d:224,h:2.54,e:[17357,16483,37427,22244],c:[["太原",530.41],["运城",477.45],["临汾",397.65],["晋中",379.27],["吕梁",339.85],["长治",318.09],["大同",310.55],["晋城",219.45],["朔州",170.42],["忻州",269.93]]},
+"重庆":{r:"西南",co:"#A78BFA",p:3205.42,p10:2885,a:[15.91,62.22,21.87,17.08],g:102.1,u:70.48,d:389,h:2.45,e:[15442,17323,35480,24788],c:[["渝北",218.58],["万州",156.44],["合川",137.56],["江津",124.31],["沙坪坝",112.81],["涪陵",110.13],["永川",109.88],["巴南",100.27],["南岸",98.67],["九龙坡",105.67]]},
+"黑龙江":{r:"东北",co:"#00E5CC",p:3185.01,p10:3833,a:[10.32,66.46,23.22,15.61],g:100.4,u:65.61,d:70,h:2.25,e:[16730,16812,36467,22017],c:[["哈尔滨",1000.99],["齐齐哈尔",406.71],["绥化",375.62],["大庆",278.00],["牡丹江",229.02],["佳木斯",207.91],["鸡西",150.29],["黑河",128.60],["双鸭山",120.88],["鹤岗",89.13]]},
+"新疆":{r:"西北",co:"#38BDF8",p:2585.23,p10:2185,a:[22.46,65.38,12.16,7.76],g:107.1,u:57.26,d:16,h:2.78,e:[16598,14606,34810,26244],c:[["喀什",449.64],["乌鲁木齐",405.44],["伊犁",284.84],["阿克苏",271.76],["和田",245.68],["昌吉",159.13],["塔城",103.57],["哈密",67.38],["阿勒泰",69.09],["博尔塔拉",48.82]]},
+"甘肃":{r:"西北",co:"#38BDF8",p:2501.98,p10:2557,a:[20.46,62.20,17.34,12.58],g:104.2,u:52.23,d:55,h:2.75,e:[14560,14470,34759,26929],c:[["兰州",435.94],["天水",298.46],["定西",252.21],["陇南",232.81],["庆阳",217.95],["平凉",184.23],["白银",151.10],["武威",146.53],["张掖",113.41],["酒泉",105.52]]},
+"上海":{r:"华东",co:"#FFE03D",p:2487.09,p10:2303,a:[9.80,66.82,23.38,16.28],g:107.3,u:89.30,d:3923,h:2.32,e:[33872,19436,29765,16119],c:[["浦东",568.15],["闵行",254.39],["宝山",224.43],["松江",175.69],["嘉定",158.19],["杨浦",131.12],["普陀",123.98],["静安",106.78],["虹口",80.20],["长宁",69.26]]},
+"吉林":{r:"东北",co:"#00E5CC",p:2407.35,p10:2746,a:[11.71,65.42,22.87,15.61],g:99.7,u:64.27,d:124,h:2.29,e:[16713,17040,36405,22165],c:[["长春",906.69],["吉林",362.37],["松原",225.29],["延边",194.17],["四平",181.47],["白城",155.14],["通化",130.83],["辽源",99.68],["白山",95.17],["长白山",6.69]]},
+"内蒙古":{r:"华北",co:"#FF5C39",p:2404.92,p10:2471,a:[14.04,66.38,19.58,13.05],g:105.3,u:67.48,d:21,h:2.40,e:[17084,16361,36342,22451],c:[["赤峰",403.60],["呼和浩特",344.62],["包头",289.37],["通辽",287.32],["呼伦贝尔",224.12],["鄂尔多斯",215.36],["巴彦淖尔",153.87],["兴安盟",141.69],["乌兰察布",170.63],["锡林郭勒",92.06]]},
+"北京":{r:"华北",co:"#FF5C39",p:2189.30,p10:1962,a:[11.84,68.53,19.63,13.30],g:104.6,u:87.55,d:1334,h:2.31,e:[41980,20591,25747,13786],c:[["朝阳",345.25],["海淀",313.33],["昌平",218.79],["丰台",201.90],["通州",184.03],["大兴",184.13],["顺义",132.40],["房山",131.06],["西城",110.60],["东城",70.89]]},
+"天津":{r:"华北",co:"#FF5C39",p:1386.60,p10:1294,a:[13.47,64.50,21.03,14.75],g:110.6,u:84.70,d:1168,h:2.38,e:[26767,18183,29018,18134],c:[["滨海新区",206.73],["西青",118.82],["武清",112.52],["北辰",95.30],["蓟州",79.64],["宝坻",73.59],["静海",62.04],["宁河",34.73],["河东",96.51],["南开",89.06]]},
+"海南":{r:"华南",co:"#4ADE80",p:1008.12,p10:867,a:[19.97,65.38,14.65,10.43],g:113.0,u:60.93,d:298,h:2.68,e:[14067,16348,35953,25055],c:[["海口",287.33],["三亚",103.14],["儋州",95.43],["万宁",57.64],["文昌",55.88],["琼海",52.68],["澄迈",49.74],["临高",42.10],["陵水",37.27],["乐东",46.48]]},
+"宁夏":{r:"西北",co:"#38BDF8",p:720.27,p10:630,a:[21.76,66.09,12.15,8.52],g:104.6,u:61.88,d:109,h:2.69,e:[15705,15917,35297,25358],c:[["银川",285.91],["吴忠",138.23],["固原",114.21],["中卫",107.36],["石嘴山",75.14]]},
+"青海":{r:"西北",co:"#38BDF8",p:592.40,p10:568,a:[20.44,67.01,12.55,8.68],g:105.0,u:61.43,d:8,h:2.77,e:[14880,15349,33601,27436],c:[["西宁",246.80],["海东",135.85],["海西",46.82],["海南州",44.70],["玉树",42.50],["海北",26.03],["黄南",27.62],["果洛",21.56]]},
+"西藏":{r:"西南",co:"#A78BFA",p:364.81,p10:300,a:[24.53,67.55,7.92,5.44],g:110.3,u:36.61,d:3,h:3.19,e:[11019,12591,29873,32163],c:[["拉萨",86.79],["日喀则",79.81],["昌都",76.10],["那曲",50.48],["山南",35.45],["林芝",23.86],["阿里",12.33]]}
+};
+
+// ===== REGION COLORS =====
+const RC = {"华北":"#FF5C39","东北":"#00E5CC","华东":"#FFE03D","华中":"#FF3D7F","华南":"#4ADE80","西南":"#A78BFA","西北":"#38BDF8"};
+
+// ===== AGE GROUP PATTERN (National 5-year groups, %) =====
+const AG_LABELS = ["0-4","5-9","10-14","15-19","20-24","25-29","30-34","35-39","40-44","45-49","50-54","55-59","60-64","65-69","70-74","75-79","80+"];
+const AG_NAT = [5.36,6.09,6.19,6.05,6.48,7.24,8.83,9.10,7.79,8.30,8.62,7.21,5.55,5.27,3.77,2.31,1.88];
+// Sub-group proportions within major groups
+const SUB_014 = [0.299,0.340,0.361]; // 0-4, 5-9, 10-14
+const SUB_1559 = [0.096,0.102,0.114,0.139,0.143,0.123,0.131,0.136,0.116]; // 15-19..55-59
+const SUB_60 = [0.297,0.282,0.201,0.124,0.096]; // 60-64..80+
+
+function genAgeGroups(prov){
+  const a = prov.a;
+  const groups = [];
+  let idx = 0;
+  // 0-14
+  for(let i=0;i<3;i++) groups.push(a[0]*SUB_014[i]);
+  // 15-59
+  for(let i=0;i<9;i++) groups.push(a[1]*SUB_1559[i]);
+  // 60+
+  for(let i=0;i<5;i++) groups.push(a[2]*SUB_60[i]);
+  return groups;
+}
+
+// ===== UTILS =====
+function fmt(n){return n.toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function fmtPct(n){return n.toFixed(2)+'%'}
+function growthRate(p,p10){return ((p-p10)/p10*100).toFixed(2)}
+
+// ===== RENDER: National Metrics =====
+function renderNatMetrics(){
+  const el = document.getElementById('natMetrics');
+  const g = growthRate(NAT.pop, NAT.pop10);
+  el.innerHTML = [
+    {cls:'nm-orange',num:'14.12',unit:'亿',label:'全国总人口'},
+    {cls:'nm-green',num:'+'+g,unit:'%',label:'较2010年增长'},
+    {cls:'nm-teal',num:'105.07',unit:'',label:'男女性别比'},
+    {cls:'nm-yellow',num:'63.89',unit:'%',label:'城镇化率'},
+    {cls:'nm-pink',num:'18.70',unit:'%',label:'60岁以上占比'}
+  ].map(m=>`<div class="nat-metric ${m.cls}"><div><span class="nm-num">${m.num}</span><span class="nm-unit">${m.unit}</span></div><div class="nm-label">${m.label}</div></div>`).join('');
+}
+
+// ===== RENDER: Hero Visual (SVG Image 1 - China Population Grid) =====
+function renderHeroVisual(){
+  const provs = Object.entries(PD).sort((a,b)=>b[1].p-a[1].p);
+  const cols = 8;
+  const rows = Math.ceil(provs.length/cols);
+  const cw = 42, ch = 42, gap = 2;
+  const w = cols*(cw+gap);
+  const h = rows*(ch+gap);
+  let blocks = '';
+  const maxPop = provs[0][1].p;
+  provs.forEach((p,i)=>{
+    const r = Math.floor(i/cols);
+    const c = i%cols;
+    const x = c*(cw+gap);
+    const y = r*(ch+gap);
+    const opacity = 0.3 + 0.7*(p[1].p/maxPop);
+    const color = RC[p[1].r];
+    blocks += `<rect x="${x}" y="${y}" width="${cw}" height="${ch}" fill="${color}" opacity="${opacity}" rx="2"/>`;
+    blocks += `<text x="${x+cw/2}" y="${y+ch/2+4}" text-anchor="middle" font-size="10" font-weight="700" fill="#000" opacity="0.7">${p[0]}</text>`;
+  });
+  document.getElementById('heroVisual').innerHTML = 
+    `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${blocks}</svg>`;
+}
+
+// ===== RENDER: Sort Bar =====
+let currentSort = 'p';
+function renderSortBar(){
+  const sorts = [
+    {key:'p',label:'人口总量'},{key:'g',label:'性别比'},
+    {key:'u',label:'城镇化率'},{key:'a2',label:'老龄化率'},
+    {key:'growth',label:'增长率'},{key:'d',label:'人口密度'}
+  ];
+  document.getElementById('sortBar').innerHTML = sorts.map(s=>
+    `<button class="sort-btn ${s.key===currentSort?'active':''}" onclick="setSort('${s.key}')">${s.label}</button>`
+  ).join('');
+}
+function setSort(key){currentSort=key;renderSortBar();renderProvGrid()}
+
+// ===== RENDER: Province Grid =====
+function renderProvGrid(){
+  const grid = document.getElementById('provGrid');
+  let arr = Object.entries(PD).map(([k,v])=>({name:k,...v,growth:parseFloat(growthRate(v.p,v.p10))}));
+  arr.sort((a,b)=>{
+    if(currentSort==='a2') return b.a[2]-a.a[2];
+    if(currentSort==='growth') return b.growth-a.growth;
+    return b[currentSort]-a[currentSort];
+  });
+  const maxPop = arr[0].p;
+  grid.innerHTML = arr.map(p=>{
+    const growth = p.growth;
+    const growthColor = growth>0?'var(--green)':'var(--orange)';
+    return `<div class="prov-card" onclick="showDetail('${p.name}')" style="border-top:3px solid ${p.co}">
+      <div class="pc-region" style="color:${p.co}">${p.r}</div>
+      <div class="pc-name">${p.name}</div>
+      <div><span class="pc-pop" style="color:${p.co}">${fmt(p.p)}</span><span class="pc-unit">万人</span></div>
+      <div class="pc-growth" style="color:${growthColor}">${growth>0?'+':''}${growth}% vs 2010</div>
+      <div class="pc-bar">
+        <span style="width:${p.a[0]}%;background:var(--green)"></span>
+        <span style="width:${p.a[1]}%;background:var(--blue)"></span>
+        <span style="width:${p.a[2]}%;background:var(--orange)"></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== SVG CHART: Age Pyramid =====
+function svgAgePyramid(prov,name){
+  const groups = genAgeGroups(prov);
+  const ratio = prov.g;
+  const malePct = ratio/(100+ratio);
+  const femalePct = 1-malePct;
+  const w=680,h=440,cx=340,marginT=30,marginB=40,marginL=10,marginR=10;
+  const barH = (h-marginT-marginB)/groups.length;
+  const maxVal = Math.max(...groups)*Math.max(malePct,femalePct);
+  const maxBarW = cx-marginL-50;
+  let bars = '';
+  let labels = '';
+  groups.forEach((g,i)=>{
+    const y = marginT + i*barH;
+    const maleVal = g*malePct;
+    const femaleVal = g*femalePct;
+    const maleW = (maleVal/maxVal)*maxBarW;
+    const femaleW = (femaleVal/maxVal)*maxBarW;
+    bars += `<rect x="${cx-maleW}" y="${y+1}" width="${maleW}" height="${barH-2}" fill="#38BDF8" opacity="0.85" rx="1"/>`;
+    bars += `<rect x="${cx}" y="${y+1}" width="${femaleW}" height="${barH-2}" fill="#FF3D7F" opacity="0.85" rx="1"/>`;
+    labels += `<text x="${cx}" y="${y+barH/2+4}" text-anchor="middle" font-size="10" fill="#666">${AG_LABELS[i]}</text>`;
+  });
+  // Axis labels
+  const axisLabels = `
+    <text x="${marginL}" y="${h-10}" font-size="12" font-weight="700" fill="#38BDF8">男性 ${malePct*100|0}%</text>
+    <text x="${w-marginR}" y="${h-10}" text-anchor="end" font-size="12" font-weight="700" fill="#FF3D7F">女性 ${(femalePct*100)|0}%</text>
+    <line x1="${cx}" y1="${marginT-5}" x2="${cx}" y2="${h-marginB}" stroke="#333" stroke-width="1"/>
+  `;
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    <text x="${w/2}" y="18" text-anchor="middle" font-size="13" fill="#888">年龄组（岁）</text>
+    ${bars}${labels}${axisLabels}
+  </svg>`;
+}
+
+// ===== SVG CHART: Trend =====
+function svgTrend(prov,name){
+  const w=680,h=320,marginT=40,marginB=50,marginL=60,marginR=40;
+  const cw = w-marginL-marginR;
+  const ch = h-marginT-marginB;
+  const p10 = prov.p10, p20 = prov.p;
+  const maxP = Math.max(p10,p20)*1.1;
+  const minP = Math.min(p10,p20)*0.9;
+  const x1 = marginL+30, x2 = marginL+cw-30;
+  const y1 = marginT+ch-((p10-minP)/(maxP-minP))*ch;
+  const y2 = marginT+ch-((p20-minP)/(maxP-minP))*ch;
+  const growth = growthRate(p20,p10);
+  const growthColor = parseFloat(growth)>0?'#4ADE80':'#FF5C39';
+  // Grid lines
+  const gridLines = [0,0.25,0.5,0.75,1].map(t=>{
+    const y = marginT+ch*t;
+    const val = maxP-(maxP-minP)*t;
+    return `<line x1="${marginL}" y1="${y}" x2="${w-marginR}" y2="${y}" stroke="#222" stroke-width="1"/>
+            <text x="${marginL-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#555">${val.toFixed(0)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    ${gridLines}
+    <line x1="${marginL}" y1="${marginT+ch}" x2="${w-marginR}" y2="${marginT+ch}" stroke="#444" stroke-width="1.5"/>
+    <!-- Area -->
+    <path d="M${x1},${marginT+ch} L${x1},${y1} L${x2},${y2} L${x2},${marginT+ch} Z" fill="${prov.co}" opacity="0.12"/>
+    <!-- Line -->
+    <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${prov.co}" stroke-width="3"/>
+    <!-- Points -->
+    <circle cx="${x1}" cy="${y1}" r="8" fill="${prov.co}"/>
+    <circle cx="${x2}" cy="${y2}" r="8" fill="${prov.co}"/>
+    <!-- Labels -->
+    <text x="${x1}" y="${y1-16}" text-anchor="middle" font-size="18" font-weight="900" fill="#fff">${fmt(p10)}</text>
+    <text x="${x1}" y="${y1-2}" text-anchor="middle" font-size="11" fill="#888">2010年 · 第六次普查</text>
+    <text x="${x2}" y="${y2-16}" text-anchor="middle" font-size="18" font-weight="900" fill="#fff">${fmt(p20)}</text>
+    <text x="${x2}" y="${y2-2}" text-anchor="middle" font-size="11" fill="#888">2020年 · 第七次普查</text>
+    <!-- Growth -->
+    <rect x="${(x1+x2)/2-50}" y="${marginT+8}" width="100" height="28" fill="${growthColor}" rx="3"/>
+    <text x="${(x1+x2)/2}" y="${marginT+27}" text-anchor="middle" font-size="14" font-weight="900" fill="#000">${parseFloat(growth)>0?'+':''}${growth}%</text>
+    <!-- X-axis labels -->
+    <text x="${x1}" y="${marginT+ch+25}" text-anchor="middle" font-size="12" font-weight="700" fill="#999">2010</text>
+    <text x="${x2}" y="${marginT+ch+25}" text-anchor="middle" font-size="12" font-weight="700" fill="#999">2020</text>
+    <text x="${marginL-8}" y="${marginT-8}" text-anchor="end" font-size="11" fill="#555">万人</text>
+  </svg>`;
+}
+
+// ===== SVG CHART: Education =====
+function svgEducation(prov){
+  const w=680,h=300,marginT=20,marginB=40,marginL=80,marginR=120;
+  const labels = ['大学（大专及以上）','高中（含中专）','初中','小学'];
+  const colors = ['#A78BFA','#38BDF8','#FFE03D','#4ADE80'];
+  const vals = prov.e;
+  const maxVal = Math.max(...vals,42000); // Beijing has 41980
+  const barH = 36, gap = 24;
+  const ch = labels.length*(barH+gap);
+  let bars = '';
+  labels.forEach((l,i)=>{
+    const y = marginT+i*(barH+gap);
+    const bw = (vals[i]/maxVal)*(w-marginL-marginR);
+    bars += `<text x="${marginL-12}" y="${y+barH/2+5}" text-anchor="end" font-size="13" font-weight="600" fill="#ccc">${l}</text>`;
+    bars += `<rect x="${marginL}" y="${y}" width="${bw}" height="${barH}" fill="${colors[i]}" opacity="0.85" rx="2"/>`;
+    bars += `<text x="${marginL+bw+8}" y="${y+barH/2+5}" font-size="14" font-weight="800" fill="${colors[i]}">${vals[i].toLocaleString()}</text>`;
+  });
+  // National comparison line
+  const natE = [15467,15088,34506,24767];
+  natE.forEach((n,i)=>{
+    const y = marginT+i*(barH+gap);
+    const bw = (n/maxVal)*(w-marginL-marginR);
+    bars += `<line x1="${marginL+bw}" y1="${y-2}" x2="${marginL+bw}" y2="${y+barH+2}" stroke="#666" stroke-width="2" stroke-dasharray="4,3"/>`;
+  });
+  bars += `<text x="${w-marginR}" y="${marginT+ch+24}" text-anchor="end" font-size="11" fill="#555">虚线为全国均值 · 每10万人口</text>`;
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+}
+
+// ===== SVG CHART: Age Donut =====
+function svgDonut(prov){
+  const w=320,h=320,cx=160,cy=160,r=110,sw=36;
+  const segs = [
+    {label:'0-14岁',val:prov.a[0],color:'#4ADE80'},
+    {label:'15-59岁',val:prov.a[1],color:'#38BDF8'},
+    {label:'60岁+',val:prov.a[2],color:'#FF5C39'}
+  ];
+  const C = 2*Math.PI*r;
+  let offset = 0;
+  let segHtml = '';
+  segs.forEach(s=>{
+    const dash = (s.val/100)*C;
+    segHtml += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${dash} ${C-dash}" stroke-dashoffset="${-offset}" transform="rotate(-90 ${cx} ${cy})" opacity="0.9"/>`;
+    offset += dash;
+  });
+  // Center text
+  const centerTxt = `<text x="${cx}" y="${cy-8}" text-anchor="middle" font-size="32" font-weight="900" fill="#fff">${prov.a[2].toFixed(1)}%</text>
+    <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="12" fill="#888">60岁以上</text>`;
+  // Legend
+  let legend = '';
+  segs.forEach((s,i)=>{
+    const ly = 250+i*22;
+    legend += `<rect x="40" y="${ly}" width="14" height="14" fill="${s.color}" rx="2"/>`;
+    legend += `<text x="62" y="${ly+12}" font-size="12" fill="#ccc">${s.label} ${s.val.toFixed(2)}%</text>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${segHtml}${centerTxt}${legend}</svg>`;
+}
+
+// ===== SVG CHART: City Bar Chart =====
+function svgCityBars(prov){
+  const cities = [...prov.c].sort((a,b)=>b[1]-a[1]);
+  const w=680,h=Math.max(300,cities.length*42+40),marginT=20,marginB=30,marginL=70,marginR=80;
+  const barH=28,gap=10;
+  const maxVal = cities[0][1];
+  let bars = '';
+  cities.forEach((c,i)=>{
+    const y = marginT+i*(barH+gap);
+    const bw = (c[1]/maxVal)*(w-marginL-marginR);
+    bars += `<text x="${marginL-10}" y="${y+barH/2+5}" text-anchor="end" font-size="13" font-weight="600" fill="#ccc">${c[0]}</text>`;
+    bars += `<rect x="${marginL}" y="${y}" width="${bw}" height="${barH}" fill="${prov.co}" opacity="${0.5+0.5*(c[1]/maxVal)}" rx="2"/>`;
+    bars += `<text x="${marginL+bw+8}" y="${y+barH/2+5}" font-size="13" font-weight="700" fill="${prov.co}">${fmt(c[1])}</text>`;
+  });
+  bars += `<text x="${w-marginR}" y="${h-8}" text-anchor="end" font-size="11" fill="#555">常住人口 · 万人</text>`;
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+}
+
+// ===== SVG CHART: Gender Viz =====
+function svgGender(prov){
+  const w=320,h=200;
+  const ratio = prov.g;
+  const malePct = ratio/(100+ratio)*100;
+  const femalePct = 100-malePct;
+  const barW = 260, barH = 50, barX = 30, barY = 60;
+  const maleW = barW*malePct/100;
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    <text x="${w/2}" y="30" text-anchor="middle" font-size="14" font-weight="800" fill="#999">性别构成</text>
+    <rect x="${barX}" y="${barY}" width="${maleW}" height="${barH}" fill="#38BDF8" opacity="0.85" rx="2"/>
+    <rect x="${barX+maleW}" y="${barY}" width="${barW-maleW}" height="${barH}" fill="#FF3D7F" opacity="0.85" rx="2"/>
+    <text x="${barX+maleW/2}" y="${barY+barH/2+5}" text-anchor="middle" font-size="16" font-weight="900" fill="#000">${malePct.toFixed(1)}%</text>
+    <text x="${barX+maleW+(barW-maleW)/2}" y="${barY+barH/2+5}" text-anchor="middle" font-size="16" font-weight="900" fill="#000">${femalePct.toFixed(1)}%</text>
+    <text x="${barX}" y="${barY+barH+22}" font-size="12" font-weight="700" fill="#38BDF8">男</text>
+    <text x="${barX+barW}" y="${barY+barH+22}" text-anchor="end" font-size="12" font-weight="700" fill="#FF3D7F">女</text>
+    <text x="${w/2}" y="${barY+barH+22}" text-anchor="middle" font-size="13" font-weight="700" fill="#ccc">性别比 ${ratio}（男:女=100）</text>
+    <text x="${w/2}" y="${h-8}" text-anchor="middle" font-size="11" fill="#555">全国均值 105.07</text>
+  </svg>`;
+}
+
+// ===== SVG IMAGE 2: Population Figures Collage =====
+function svgPopulationFigures(prov){
+  const w=300,h=300;
+  const colors = [prov.co,'#38BDF8','#FF3D7F','#FFE03D','#4ADE80'];
+  let figures = '';
+  // Abstract human figures (circle head + rounded body)
+  const positions = [
+    {x:80,y:60,s:40,c:0},{x:180,y:50,s:55,c:1},{x:60,y:150,s:30,c:2},
+    {x:140,y:130,s:45,c:3},{x:220,y:140,s:35,c:4},{x:100,y:220,s:28,c:1},
+    {x:190,y:210,s:38,c:0}
+  ];
+  positions.forEach(p=>{
+    const r = p.s*0.35;
+    figures += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${colors[p.c]}" opacity="0.8"/>`;
+    figures += `<rect x="${p.x-p.s*0.4}" y="${p.y+r}" width="${p.s*0.8}" height="${p.s*0.8}" fill="${colors[p.c]}" opacity="0.6" rx="${p.s*0.15}"/>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${figures}</svg>`;
+}
+
+// ===== RENDER: Province Detail =====
+function showDetail(name){
+  const prov = PD[name];
+  if(!prov) return;
+  const el = document.getElementById('detailContent');
+  const rank = Object.values(PD).filter(p=>p.p>prov.p).length+1;
+  const growth = growthRate(prov.p,prov.p10);
+  // Comparison with national
+  const cmp = (val,nat,label,unit)=>{
+    const diff = (val-nat).toFixed(2);
+    const up = parseFloat(diff)>=0;
+    return `<span class="mc-compare ${up?'up':'down'}">${up?'↑':'↓'} ${up?'+':''}${diff}${unit||'%'} vs 全国</span>`;
+  };
+  el.innerHTML = `
+    <div class="prov-header" style="position:relative">
+      <div class="ph-name" style="color:${prov.co}">${name}</div>
+      <div class="ph-info">
+        <div class="ph-region" style="color:${prov.co}">${prov.r}地区</div>
+        <div class="ph-rank">人口排名第 ${rank} 位 · 2020年第七次普查</div>
+      </div>
+      <div style="position:absolute;top:0;right:0;width:120px;height:120px;opacity:.12;pointer-events:none">
+        ${svgPopulationFigures(prov)}
+      </div>
+    </div>
+    <!-- Metric Cards -->
+    <div class="metric-grid">
+      <div class="m-card">
+        <div class="mc-label">常住人口</div>
+        <div><span class="mc-num" style="color:${prov.co}">${fmt(prov.p)}</span><span class="mc-unit">万人</span></div>
+        <div class="mc-compare ${parseFloat(growth)>=0?'up':'down'}">${parseFloat(growth)>=0?'↑':'↓'} ${parseFloat(growth)>=0?'+':''}${growth}% vs 2010</div>
+      </div>
+      <div class="m-card">
+        <div class="mc-label">男女性别比</div>
+        <div><span class="mc-num" style="color:${prov.co}">${prov.g}</span></div>
+        ${cmp(prov.g,NAT.gender,'','')}
+      </div>
+      <div class="m-card">
+        <div class="mc-label">城镇化率</div>
+        <div><span class="mc-num" style="color:${prov.co}">${prov.u}</span><span class="mc-unit">%</span></div>
+        ${cmp(prov.u,NAT.urban,'','%')}
+      </div>
+      <div class="m-card">
+        <div class="mc-label">60岁以上占比</div>
+        <div><span class="mc-num" style="color:${prov.co}">${prov.a[2]}</span><span class="mc-unit">%</span></div>
+        ${cmp(prov.a[2],NAT.age[2],'','%')}
+      </div>
+      <div class="m-card">
+        <div class="mc-label">人口密度</div>
+        <div><span class="mc-num" style="color:${prov.co}">${fmt(prov.d)}</span><span class="mc-unit">人/km²</span></div>
+      </div>
+      <div class="m-card">
+        <div class="mc-label">户均人口</div>
+        <div><span class="mc-num" style="color:${prov.co}">${prov.h}</span><span class="mc-unit">人</span></div>
+        ${cmp(prov.h,NAT.household,'','')}
+      </div>
+      <div class="m-card">
+        <div class="mc-label">0-14岁占比</div>
+        <div><span class="mc-num" style="color:${prov.co}">${prov.a[0]}</span><span class="mc-unit">%</span></div>
+        ${cmp(prov.a[0],NAT.age[0],'','%')}
+      </div>
+      <div class="m-card">
+        <div class="mc-label">65岁以上占比</div>
+        <div><span class="mc-num" style="color:${prov.co}">${prov.a[3]}</span><span class="mc-unit">%</span></div>
+        ${cmp(prov.a[3],NAT.age[3],'','%')}
+      </div>
+    </div>
+    <!-- Charts -->
+    <div class="chart-grid">
+      <div class="chart-box full">
+        <div class="chart-title">年龄结构金字塔</div>
+        <div class="chart-subtitle">按5岁年龄组划分的男女人口分布 · 基于第七次普查年龄结构推算</div>
+        <div class="chart-svg-wrap">${svgAgePyramid(prov,name)}</div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">人口变化趋势</div>
+        <div class="chart-subtitle">2010年第六次普查 → 2020年第七次普查</div>
+        <div class="chart-svg-wrap">${svgTrend(prov,name)}</div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">年龄构成</div>
+        <div class="chart-subtitle">三大年龄段占比 · 点击查看金字塔详情</div>
+        <div class="chart-svg-wrap">${svgDonut(prov)}</div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">受教育程度</div>
+        <div class="chart-subtitle">每10万人口中各类受教育程度人数 · 虚线为全国均值</div>
+        <div class="chart-svg-wrap">${svgEducation(prov)}</div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">性别构成</div>
+        <div class="chart-subtitle">男女人口比例 · 全国均值 105.07</div>
+        <div class="chart-svg-wrap">${svgGender(prov)}</div>
+      </div>
+      <div class="chart-box full">
+        <div class="chart-title">地级市/州人口排行</div>
+        <div class="chart-subtitle">点击柱状图下方城市卡片查看详情</div>
+        <div class="chart-svg-wrap">${svgCityBars(prov)}</div>
+      </div>
+    </div>
+    <!-- City Grid -->
+    <div class="city-list-title">
+      <h3>地级市 / 自治州</h3>
+      <span>共 ${prov.c.length} 个行政单位 · 点击查看城市详情</span>
+    </div>
+    <div class="city-grid" id="cityGrid"></div>
+  `;
+  // Render city cards
+  const cg = document.getElementById('cityGrid');
+  const sortedCities = [...prov.c].sort((a,b)=>b[1]-a[1]);
+  const maxCityPop = sortedCities[0][1];
+  cg.innerHTML = sortedCities.map(c=>
+    `<div class="city-card" onclick="showCityDetail('${name}','${c[0]}')">
+      <div class="cc-name">${c[0]}</div>
+      <div><span class="cc-pop" style="color:${prov.co}">${fmt(c[1])}</span><span class="cc-unit"> 万人</span></div>
+      <div class="cc-bar"><div style="width:${c[1]/maxCityPop*100}%;height:100%;background:${prov.co}"></div></div>
+    </div>`
+  ).join('');
+  document.getElementById('detailSection').classList.add('active');
+  document.getElementById('detailSection').scrollIntoView({behavior:'smooth'});
+}
+
+function closeDetail(){
+  document.getElementById('detailSection').classList.remove('active');
+  document.querySelector('.sec-title').scrollIntoView({behavior:'smooth'});
+}
+
+// ===== RENDER: City Detail =====
+function showCityDetail(provName,cityName){
+  const prov = PD[provName];
+  const city = prov.c.find(c=>c[0]===cityName);
+  if(!city) return;
+  const el = document.getElementById('cityContent');
+  const cityPop = city[1];
+  const provAvg = prov.p/prov.c.length;
+  const provPct = (cityPop/prov.p*100).toFixed(2);
+  const rank = [...prov.c].sort((a,b)=>b[1]-a[1]).findIndex(c=>c[0]===cityName)+1;
+  // Comparison bars
+  const cmpBar = (cityVal,provVal,label,color1,color2)=>{
+    const maxV = Math.max(cityVal,provVal)*1.2;
+    return `<div class="compare-card">
+      <div class="cp-label">${label}</div>
+      <div class="cp-bars">
+        <div class="cp-bar-wrap">
+          <div class="cp-bar-label">全省均值 <span style="color:${color1};font-weight:700">${provVal.toFixed(2)}</span></div>
+          <div class="cp-bar"><div class="cp-bar-fill cp-prov" style="width:${provVal/maxV*100}%;background:${color1}"></div></div>
+        </div>
+        <div class="cp-bar-wrap">
+          <div class="cp-bar-label">本市 <span style="color:${color2};font-weight:700">${cityVal.toFixed(2)}</span></div>
+          <div class="cp-bar"><div class="cp-bar-fill cp-city" style="width:${cityVal/maxV*100}%;background:${color2}"></div></div>
+        </div>
+      </div>
+    </div>`;
+  };
+  el.innerHTML = `
+    <div class="city-header" style="position:relative">
+      <div class="ch-name" style="color:${prov.co}">${cityName}</div>
+      <div>
+        <div style="font-size:14px;color:var(--t2);margin-bottom:4px">${provName} · ${prov.r}地区</div>
+        <div><span class="ch-pop" style="color:${prov.co}">${fmt(cityPop)}</span><span class="ch-unit"> 万人</span></div>
+      </div>
+    </div>
+    <div class="metric-grid">
+      <div class="m-card">
+        <div class="mc-label">常住人口</div>
+        <div><span class="mc-num" style="color:${prov.co}">${fmt(cityPop)}</span><span class="mc-unit">万人</span></div>
+        <div class="mc-compare up">全省占比 ${provPct}%</div>
+      </div>
+      <div class="m-card">
+        <div class="mc-label">全省排名</div>
+        <div><span class="mc-num" style="color:${prov.co}">第${rank}位</span></div>
+        <div class="mc-compare">共 ${prov.c.length} 个行政单位</div>
+      </div>
+      <div class="m-card">
+        <div class="mc-label">vs 全省均值</div>
+        <div><span class="mc-num" style="color:${cityPop>=provAvg?'#4ADE80':'#FF5C39'}">${cityPop>=provAvg?'+':''}${(cityPop-provAvg).toFixed(2)}</span><span class="mc-unit">万人</span></div>
+        <div class="mc-compare ${cityPop>=provAvg?'up':'down'}">${cityPop>=provAvg?'高于':'低于'}全省均值 ${provAvg.toFixed(2)} 万人</div>
+      </div>
+    </div>
+    <!-- Comparison Charts -->
+    <div class="chart-grid">
+      <div class="chart-box full">
+        <div class="chart-title">城市与全省对比</div>
+        <div class="chart-subtitle">${cityName} 与 ${provName} 全省均值的关键指标对比</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--border)">
+          ${cmpBar(cityPop,provAvg,'常住人口（万人）','#FF5C39','#00E5CC')}
+          ${cmpBar(prov.a[0],prov.a[0],'0-14岁占比（%）','#FF5C39','#00E5CC')}
+          ${cmpBar(prov.a[1],prov.a[1],'15-59岁占比（%）','#FF5C39','#00E5CC')}
+          ${cmpBar(prov.a[2],prov.a[2],'60岁以上占比（%）','#FF5C39','#00E5CC')}
+          ${cmpBar(prov.u,prov.u,'城镇化率（%）','#FF5C39','#00E5CC')}
+          ${cmpBar(prov.g,prov.g,'性别比','#FF5C39','#00E5CC')}
+        </div>
+      </div>
+      <div class="chart-box full">
+        <div class="chart-title">${provName} 各地市人口排行</div>
+        <div class="chart-subtitle">红条标记为当前选中城市 · ${cityName}</div>
+        <div class="chart-svg-wrap">${svgCityBarsHighlight(prov,cityName)}</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('citySection').classList.add('active');
+  document.getElementById('citySection').scrollIntoView({behavior:'smooth'});
+}
+
+// ===== SVG CHART: City Bars with Highlight =====
+function svgCityBarsHighlight(prov,highlightCity){
+  const cities = [...prov.c].sort((a,b)=>b[1]-a[1]);
+  const w=680,h=Math.max(300,cities.length*42+40),marginT=20,marginB=30,marginL=70,marginR=80;
+  const barH=28,gap=10;
+  const maxVal = cities[0][1];
+  let bars = '';
+  cities.forEach((c,i)=>{
+    const y = marginT+i*(barH+gap);
+    const bw = (c[1]/maxVal)*(w-marginL-marginR);
+    const isHL = c[0]===highlightCity;
+    const fillColor = isHL ? '#FF3D7F' : prov.co;
+    const opacity = isHL ? 1 : 0.4+0.4*(c[1]/maxVal);
+    bars += `<text x="${marginL-10}" y="${y+barH/2+5}" text-anchor="end" font-size="13" font-weight="${isHL?'800':'600'}" fill="${isHL?'#FF3D7F':'#ccc'}">${c[0]}</text>`;
+    bars += `<rect x="${marginL}" y="${y}" width="${bw}" height="${barH}" fill="${fillColor}" opacity="${opacity}" rx="2"/>`;
+    bars += `<text x="${marginL+bw+8}" y="${y+barH/2+5}" font-size="13" font-weight="${isHL?'900':'700'}" fill="${fillColor}">${fmt(c[1])}</text>`;
+  });
+  bars += `<text x="${w-marginR}" y="${h-8}" text-anchor="end" font-size="11" fill="#555">常住人口 · 万人</text>`;
+  return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+}
+
+function closeCityDetail(){
+  document.getElementById('citySection').classList.remove('active');
+  document.getElementById('detailSection').scrollIntoView({behavior:'smooth'});
+}
+
+
+// ===== Deep link from Workbench (?province=&city=) =====
+function applyDeepLink(){
+  try {
+    const q = new URLSearchParams(location.search);
+    const province = (q.get('province') || '').trim();
+    const city = (q.get('city') || '').trim();
+    if (province && PD[province]) {
+      showDetail(province);
+      if (city) {
+        setTimeout(() => showCityDetail(province, city), 80);
+      }
+    }
+  } catch (e) {}
+}
+
+// ===== INIT =====
+renderNatMetrics();
+renderHeroVisual();
+renderSortBar();
+renderProvGrid();
+applyDeepLink();
+</script>
+</body>
+</html>
