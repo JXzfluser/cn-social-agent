@@ -1,0 +1,27 @@
+# 开发环境配置
+# 通过 APP_ENV=dev 或 ENVIRONMENT=dev 加载
+
+llm:
+  model: agnes-2.0-flash
+  temperature: 0.9
+  timeout: 30.0
+
+agent:
+  max_steps: 5
+  step_interval: 0.5
+  thinking_enabled: true
+  auto_retry: true
+
+logging:
+  level: DEBUG
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+  console_enabled: true
+  file_path: logs/dev.log
+
+database:
+  echo: true
+  url: data/cn_social_agent.dev.db
+  pool_size: 2
+
+webhook:
+  enabled: false

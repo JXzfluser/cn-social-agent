@@ -1,0 +1,41 @@
+agent:
+  auto_retry: true
+  max_retries: 3
+  max_steps: 10
+  review_workflow_enabled: true
+  step_interval: 1.0
+  thinking_enabled: false
+database:
+  echo: false
+  pool_recycle: 3600
+  pool_size: 5
+  pool_timeout: 30
+  url: data/cn_social_agent.db
+llm:
+  api_key: ''
+  max_tokens: 2000
+  model: ''
+  provider: agnes
+  temperature: 0.7
+logging:
+  backup_count: 5
+  console_enabled: true
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+  max_bytes: 10485760
+platforms:
+  dingtalk_app_key: dingtalk_real_app_key
+  dingtalk_app_secret: dingtalk_real_app_secret
+  feishu_app_id: feishu_real_app_id
+  feishu_app_secret: feishu_real_app_secret
+  wecom_corp_id: ''
+  wecom_secret: ''
+  weixin_app_id: ''
+  weixin_app_secret: ''
+webhook:
+  enabled: true
+  events:
+  - review
+  - publish
+  secret: null
+  url: https://hooks.example.com

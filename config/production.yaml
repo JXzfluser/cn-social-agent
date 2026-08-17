@@ -1,0 +1,40 @@
+# 生产环境配置
+# 通过 APP_ENV=production 或 APP_ENV=prod 加载
+# 注意：敏感信息（API Key、Secret）必须通过环境变量注入，不要提交到仓库。
+
+llm:
+  # 生产环境使用稳定、温度较低的模型
+  model: MiniMax-Text-01
+  temperature: 0.5
+  max_tokens: 4000
+  timeout: 90.0
+
+agent:
+  max_steps: 20
+  step_interval: 2.0
+  auto_retry: true
+  max_retries: 5
+  review_workflow_enabled: true
+  thinking_enabled: false
+
+logging:
+  level: WARNING              # 生产环境仅记录 WARN 及以上
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+  console_enabled: false     # 生产环境关闭控制台，避免重复输出
+  file_path: logs/production.log
+  max_bytes: 104857600        # 100MB
+  backup_count: 20
+
+database:
+  echo: false
+  # 生产环境推荐使用 PostgreSQL，例如 postgresql://user:pass@host:5432/db
+  url: data/cn_social_agent.db
+  pool_size: 20
+  pool_timeout: 60
+  pool_recycle: 1800
+
+webhook:
+  enabled: true
+  retry_on_failure: true
+  max_retries: 5
+  timeout: 20
