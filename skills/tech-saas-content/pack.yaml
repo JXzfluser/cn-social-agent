@@ -1,0 +1,21 @@
+# DEPRECATED: use packs/tech-saas/pack.yaml
+# Kept so WORKBENCH_PACK=tech-saas-content still resolves via legacy path.
+id: tech-saas
+version: "0.1.0-legacy"
+customer_profile: tech_saas
+skills_enabled:
+  - tech-saas-content
+  - short-video-director
+  - short-video-researcher
+  - github-star-growth-video
+  - hiring-insight-cards
+  - deep-analysis-video
+skills_optional:
+  - web-video-presentation
+  - ffmpeg-motion-cards
+  - demo-echo
+defaults:
+  video:
+    target_seconds: 15
+    default_template_id: product_update
+    bg_theme: studio
