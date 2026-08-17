@@ -12,7 +12,7 @@ database:
   pool_timeout: 30
   url: data/cn_social_agent.db
 llm:
-  api_key: ''
+  api_key: '' # set via env or .env; never commit live keys
   max_tokens: 2000
   model: ''
   provider: agnes
