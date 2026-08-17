@@ -1,0 +1,3 @@
+[submodule "insforge"]
+	path = insforge
+	url = https://github.com/InsForge/InsForge.git

@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Docker
+docker-compose*.yml
+
+# Documentation
+*.md
+!README.md
+!DESIGN.md
+docs/
+
+# Local files
+.env
+.env.*
+*.log
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workflow scripts (development only)
+workflow.js
+workflows/

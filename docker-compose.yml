@@ -1,0 +1,216 @@
+# CN-Social-Agent Docker Compose Configuration
+version: '3.8'
+
+services:
+  # Main Application (所有页面集成在 8080 端口)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cn-social-agent
+    ports:
+      - "${APP_PORT:-8080}:8080"  # 所有页面都在这个端口
+    environment:
+      # LLM Provider
+      - LLM_PROVIDER=${LLM_PROVIDER:-minimax}
+      - LLM_MODEL=${LLM_MODEL:-MiniMax-M2.7-highspeed}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY}
+      - BAIDU_API_KEY=${BAIDU_API_KEY}
+      - BAIDU_SECRET_KEY=${BAIDU_SECRET_KEY}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+
+      # Platform Configuration
+      - DINGTALK_APP_KEY=${DINGTALK_APP_KEY}
+      - DINGTALK_APP_SECRET=${DINGTALK_APP_SECRET}
+      - FEISHU_APP_ID=${FEISHU_APP_ID}
+      - FEISHU_APP_SECRET=${FEISHU_APP_SECRET}
+      - WECOM_CORP_ID=${WECOM_CORP_ID}
+      - WECOM_CORP_SECRET=${WECOM_CORP_SECRET}
+      - WEIXIN_APP_ID=${WEIXIN_APP_ID}
+      - WEIXIN_APP_SECRET=${WEIXIN_APP_SECRET}
+      - WEIXIN_TOKEN=${WEIXIN_TOKEN}
+      - WEIXIN_AES_KEY=${WEIXIN_AES_KEY}
+
+      # Storage
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/cn_social_agent
+      - REDIS_URL=redis://redis:6379/0
+      - INBOX_DB_PATH=/app/data/inbox.db
+      - MEMORY_DB_PATH=/app/data/memory.db
+
+      # Vector Store
+      - CHROMA_DB_PATH=/app/data/chroma_db
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_DIR=/app/logs
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - cn-social-network
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: cn-social-agent-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=cn_social_agent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cn-social-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: cn-social-agent-redis
+    ports:
+      - "${REDIS_PORT:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cn-social-network
+
+  # ============================================================================
+  # InsForge Backend Platform
+  # Provides: Auth / PostgREST / Storage / Model Gateway / Edge Functions
+  # Repository: https://github.com/InsForge/InsForge
+  # ============================================================================
+
+  # InsForge PostgreSQL (isolated from cn-social-agent's own postgres)
+  insforge-db:
+    image: ghcr.io/insforge/postgres:v15.13.4
+    container_name: insforge-db
+    command: >
+      postgres -c config_file=/etc/postgresql/postgresql.conf
+      -c app.encryption_key='${INSFORGE_ENCRYPTION_KEY:-${INSFORGE_JWT_SECRET:-dev-secret-please-change-in-production}}'
+    environment:
+      POSTGRES_USER: ${INSFORGE_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${INSFORGE_POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${INSFORGE_POSTGRES_DB:-insforge}
+    volumes:
+      - insforge_postgres_data:/var/lib/postgresql/data
+      - ./insforge/deploy/docker-init/db/db-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./insforge/deploy/docker-init/db/jwt.sql:/docker-entrypoint-initdb.d/02-jwt.sql
+      - ./insforge/deploy/docker-init/db/postgresql.conf:/etc/postgresql/postgresql.conf
+    ports:
+      - "${INSFORGE_DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - cn-social-network
+
+  # PostgREST - RESTful API for InsForge PostgreSQL
+  insforge-pgrst:
+    image: postgrest/postgrest:v12.2.12
+    container_name: insforge-pgrst
+    restart: unless-stopped
+    environment:
+      PGRST_DB_URI: postgres://${INSFORGE_POSTGRES_USER:-postgres}:${INSFORGE_POSTGRES_PASSWORD:-postgres}@insforge-db:5432/${INSFORGE_POSTGRES_DB:-insforge}
+      PGRST_OPENAPI_SERVER_PROXY_URI: http://localhost:3000
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${INSFORGE_JWT_SECRET:-dev-secret-please-change-in-production}
+    ports:
+      - "${INSFORGE_PGRST_PORT:-5434}:3000"
+    depends_on:
+      insforge-db:
+        condition: service_healthy
+    networks:
+      - cn-social-network
+
+  # InsForge Main Application
+  insforge:
+    build:
+      context: ./insforge
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        VITE_API_BASE_URL: ${INSFORGE_API_BASE_URL:-http://localhost:7130}
+    container_name: insforge
+    depends_on:
+      insforge-db:
+        condition: service_healthy
+    ports:
+      - "${INSFORGE_APP_PORT:-7130}:7130"
+      - "${INSFORGE_AUTH_PORT:-7131}:7131"
+    environment:
+      PORT: 7130
+      PROJECT_ROOT: /app
+      API_BASE_URL: ${INSFORGE_API_BASE_URL:-}
+      JWT_SECRET: ${INSFORGE_JWT_SECRET:-dev-secret-please-change-in-production}
+      ENCRYPTION_KEY: ${INSFORGE_ENCRYPTION_KEY:-}
+      ROOT_ADMIN_USERNAME: ${INSFORGE_ADMIN_USERNAME:-admin}
+      ROOT_ADMIN_PASSWORD: ${INSFORGE_ADMIN_PASSWORD:-change-this-password}
+      POSTGRES_HOST: insforge-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${INSFORGE_POSTGRES_DB:-insforge}
+      POSTGRES_USER: ${INSFORGE_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${INSFORGE_POSTGRES_PASSWORD:-postgres}
+      DATABASE_URL: postgresql://${INSFORGE_POSTGRES_USER:-postgres}:${INSFORGE_POSTGRES_PASSWORD:-postgres}@insforge-db:5432/${INSFORGE_POSTGRES_DB:-insforge}
+      POSTGREST_BASE_URL: http://insforge-pgrst:3000
+      OPENROUTER_API_KEY: ${INSFORGE_OPENROUTER_API_KEY:-}
+      MAX_FILE_SIZE: ${INSFORGE_MAX_FILE_SIZE:-}
+      INSFORGE_DISABLE_WRITE_RATE_LIMIT: "1"
+      STORAGE_DIR: /insforge-storage
+      LOGS_DIR: /insforge-logs
+    volumes:
+      - insforge_storage:/insforge-storage
+      - insforge_logs:/insforge-logs
+    restart: unless-stopped
+    networks:
+      - cn-social-network
+
+volumes:
+  app_data:
+    driver: local
+  app_logs:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  insforge_postgres_data:
+    driver: local
+  insforge_storage:
+    driver: local
+  insforge_logs:
+    driver: local
+  insforge_deno_cache:
+    driver: local
+
+networks:
+  cn-social-network:
+    driver: bridge

@@ -1,0 +1,36 @@
+# Environment & secrets
+.env
+.env.local
+!*.env.example
+
+# Runtime user data (OAuth tokens, DBs, per-user cards/videos)
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent tooling internal state
+.sisyphus/
+.superpowers/
+.gstack/
+
+# Logs
+*.log
