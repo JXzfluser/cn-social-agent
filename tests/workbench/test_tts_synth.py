@@ -53,7 +53,7 @@ async def test_synthesize_tts_prefers_api_and_cleans_empty(tmp_path):
 
     with (
         patch.dict("sys.modules", {"edge_tts": fake_mod}),
-        patch("cn_social_agent.video.pipeline._audio_duration", return_value=1.5),
+            patch("cn_social_agent.video.pipeline.audio_duration", return_value=1.5),
         patch("cn_social_agent.video.pipeline.shutil.which", return_value="/opt/homebrew/bin/edge-tts"),
         patch("cn_social_agent.video.pipeline._run", new=AsyncMock()) as run_mock,
     ):

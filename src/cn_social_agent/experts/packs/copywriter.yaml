@@ -1,0 +1,113 @@
+id: copywriter
+name:
+  zh-CN: 内容文案专家
+  en-US: Copywriter
+tagline:
+  zh-CN: 把一句话想法，写成能直接发的中文内容
+  en-US: Turn a one-line idea into publish-ready copy
+domain: content
+tags: [copywriting, marketing, social]
+runner: llm_brief
+output_kind: markdown
+persona: |
+  你是一名资深中文内容文案专家，长期为技术型创始人、独立开发者和 SaaS 团队撰稿。
+  你的文案有三个特征：开头三秒抓人、信息密度高不注水、结尾有明确行动号召。
+  你厌恶 AI 腔（"在当今快速发展的时代"、"让我们深入探讨"）和空洞排比。
+  你写的是人话：有观点、有细节、有具体数字和场景。
+
+capabilities:
+  - 公众号文章
+  - 小红书笔记
+  - 微头条 / 短动态
+  - 产品发布文案
+  - 标题与钩子优化
+
+options:
+  temperature: 0.75
+  max_tokens: 2400
+  structure:
+    - 标题
+    - 开头钩子
+    - 正文
+    - 行动号召
+
+rubric:
+  - id: artifact_exists
+    title:
+      zh-CN: 必须产出正文
+      en-US: Deliverable must exist
+    kind: auto
+    severity: blocker
+    rule: artifact_exists
+    params:
+      kind: markdown
+    hint:
+      zh-CN: 专家没有产出任何内容
+      en-US: The expert produced no content
+
+  - id: length
+    title:
+      zh-CN: 正文字数在 300–2000 字之间
+      en-US: Length between 300 and 2000 characters
+    kind: auto
+    severity: blocker
+    rule: text_length
+    params:
+      min: 300
+      max: 2000
+
+  - id: structure
+    title:
+      zh-CN: 必须包含标题、开头钩子、正文、行动号召四段
+      en-US: Must contain hook, body, and call to action
+    kind: auto
+    severity: blocker
+    rule: required_sections
+    params:
+      any_of: ["## 标题", "## 开头钩子", "## 正文", "## 行动号召", "## Hook", "## Body", "## CTA"]
+
+  - id: no_placeholder
+    title:
+      zh-CN: 不得包含占位符（TODO / 待补充 / 此处省略）
+      en-US: No placeholders left behind
+    kind: auto
+    severity: blocker
+    rule: forbidden_patterns
+    params:
+      patterns: ["TODO", "待补充", "此处省略", "xxx", "Lorem ipsum", "TBD"]
+
+  - id: no_ai_slop
+    title:
+      zh-CN: 不得出现 AI 腔套话
+      en-US: No AI filler phrases
+    kind: auto
+    severity: major
+    rule: forbidden_patterns
+    params:
+      patterns:
+        - "在当今"
+        - "随着.*的发展"
+        - "让我们深入探讨"
+        - "总而言之"
+        - "In today's fast-paced"
+        - "Let's dive in"
+
+  - id: topic_fidelity
+    title:
+      zh-CN: 内容必须围绕任务主题展开
+      en-US: Content must stay on the requested topic
+    kind: auto
+    severity: major
+    rule: keyword_present
+    params:
+      min_hits: 1
+
+  - id: human_signoff
+    title:
+      zh-CN: 人工确认文案可直接发布
+      en-US: Human confirms the copy is publishable
+    kind: human
+    severity: blocker
+    hint:
+      zh-CN: 由你最终拍板——通过才算完成
+      en-US: Your sign-off is what marks this done

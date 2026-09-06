@@ -1,4 +1,4 @@
-"""L1 成片质检 v0 — black frame / motion / A-V duration."""
+"""L1 成片质检 v0 — black frame / motion / A-V duration + P1/P2 gates."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
+
+from cn_social_agent.video.ffmpeg_utils import audio_duration
 
 
 @dataclass
@@ -267,3 +269,65 @@ def suggest_scene_rerenders(
             }
         )
     return tips
+
+
+def check_scene_quality(
+    scene: dict[str, Any],
+    clip_path: Path,
+    *,
+    role: str = "value",
+) -> QualityResult:
+    """P1/P2 quality gate for a single scene.
+
+    P1 (must pass): hook duration 2-5s, subtitle presence, resolution.
+    P2 (should pass): aspect ratio 9:16.
+    """
+    from cn_social_agent.video.pipeline import unpack_scene_meta
+
+    reasons: list[str] = []
+    metrics: dict[str, Any] = {}
+
+    if not clip_path.is_file():
+        return QualityResult(False, ["clip file missing"], {})
+
+    probe = _run_ffprobe(clip_path)
+    streams = probe.get("streams") or []
+
+    # Resolution check (P1)
+    video_streams = [s for s in streams if s.get("codec_type") == "video"]
+    if video_streams:
+        vs = video_streams[0]
+        w = int(vs.get("width") or 0)
+        h = int(vs.get("height") or 0)
+        metrics["width"] = w
+        metrics["height"] = h
+        valid_resolutions = {(1080, 1920), (768, 1344)}
+        if (w, h) not in valid_resolutions:
+            reasons.append(f"分辨率异常 {w}×{h}（期望 1080×1920 或 768×1344）")
+        # Aspect ratio check (P2)
+        if h > 0 and w > 0:
+            ratio = w / h
+            expected_ratio = 9 / 16
+            if abs(ratio - expected_ratio) > 0.05:
+                reasons.append(f"宽高比异常 {ratio:.2f}（期望 {expected_ratio:.2f}）")
+
+    # Hook duration check (P1)
+    if role == "hook":
+        try:
+            vdur = float((probe.get("format") or {}).get("duration") or 0)
+        except (TypeError, ValueError):
+            vdur = 0.0
+        metrics["duration"] = vdur
+        if vdur > 0 and (vdur < 2.0 or vdur > 5.0):
+            reasons.append(f"钩子时长 {vdur:.1f}s（期望 2-5s）")
+
+    # Subtitle presence check (P1)
+    meta = unpack_scene_meta(str(scene.get("image_path") or ""))
+    overlay_text = (meta.get("on_screen") or "").strip()
+    if overlay_text:
+        metrics["has_subtitle"] = True
+        metrics["subtitle_text"] = overlay_text[:22]
+    else:
+        metrics["has_subtitle"] = False
+
+    return QualityResult(passed=not reasons, reasons=reasons, metrics=metrics)

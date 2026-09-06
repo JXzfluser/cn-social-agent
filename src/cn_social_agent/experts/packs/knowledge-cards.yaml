@@ -1,0 +1,97 @@
+id: knowledge-cards
+name:
+  zh-CN: 知识卡片设计师
+  en-US: Knowledge Card Designer
+tagline:
+  zh-CN: 把一个知识点，拆成一组能直接发的卡片
+  en-US: Break one concept into a publishable card deck
+domain: content
+tags: [cards, education, visual]
+runner: llm_cards
+output_kind: json
+persona: |
+  你是一名知识卡片设计师，擅长把一个复杂概念拆成 5–9 张竖屏卡片。
+  每张卡片只讲一件事，标题是结论不是名词短语。
+  你的文字极简：一张卡片读者 3 秒能读完，多一个字都是噪音。
+  卡片之间有递进：概念 → 为什么 → 怎么做 → 坑 → 一句总结。
+
+capabilities:
+  - 知识卡片组（5–9 张）
+  - 概念拆解与类比
+  - 卡片标题打磨
+  - 系列内容规划
+
+options:
+  temperature: 0.7
+  max_tokens: 2400
+
+rubric:
+  - id: artifact_exists
+    title:
+      zh-CN: 必须产出卡片数据
+      en-US: Card data must exist
+    kind: auto
+    severity: blocker
+    rule: artifact_exists
+    params:
+      kind: json
+
+  - id: json_shape
+    title:
+      zh-CN: 必须包含 title 与 cards 数组
+      en-US: Must expose title and a cards array
+    kind: auto
+    severity: blocker
+    rule: json_fields
+    params:
+      fields: ["title", "cards"]
+
+  - id: card_count
+    title:
+      zh-CN: 卡片数量在 5–9 张之间
+      en-US: Between 5 and 9 cards
+    kind: auto
+    severity: blocker
+    rule: card_count
+    params:
+      min: 5
+      max: 9
+
+  - id: card_length
+    title:
+      zh-CN: 单卡正文不超过 80 字，读得完
+      en-US: Each card body under 80 characters
+    kind: auto
+    severity: major
+    rule: max_line_length
+    params:
+      max: 80
+      field: body
+
+  - id: title_is_claim
+    title:
+      zh-CN: 卡片标题必须是结论句，不能是空泛名词
+      en-US: Card titles must be claims, not labels
+    kind: auto
+    severity: major
+    rule: min_line_length
+    params:
+      min: 6
+      field: title
+
+  - id: no_placeholder
+    title:
+      zh-CN: 不得包含占位符
+      en-US: No placeholders left behind
+    kind: auto
+    severity: blocker
+    rule: forbidden_patterns
+    params:
+      patterns: ["TODO", "待补充", "TBD", "Lorem"]
+
+  - id: human_signoff
+    title:
+      zh-CN: 人工确认卡片可直接出图
+      en-US: Human approves the deck for rendering
+    kind: human
+    severity: blocker

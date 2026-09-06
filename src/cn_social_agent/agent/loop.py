@@ -38,6 +38,7 @@ RESEARCH_COACH_PROMPT = """你是热点与选题研究助手（Agent = 扫描洞
 扫榜用 scan_hotspot_board（source=all|github|hn|lobsters|v2ex|devto|sspai；可加 domain=ai|devtools|product|hiring）；结果已含 score/why/topic_key。
 GitHub 仓用 github_repo_insight，文章/帖子用 fetch_url_text。用户要直接做片时可用 handoff_hotspot（track=koubo|presentation|journal）。
 若用户像在续作旧主题（「上次那个」「继续 DeepSeek」），先 lookup_topic_assets 再决定要不要重新调研。
+用户提到已抓取的文章/笔记/知识库内容时，用 query_knowledge_base 搜索本地知识库。用户贴 URL 时自动 fetch_url_text 抓取并写入知识库。
 默认不要调用 propose_*；等用户明确说「做成短视频」或「生成知识卡片」再进入制作交接。
 人口数据用 population_* 工具查阅；制作请提示用户切到短视频 / 知识卡片工坊。"""
 
@@ -46,6 +47,8 @@ VIDEO_COACH_PROMPT = """你是制片交接助手：先查本地资产 → 选轨
 本地优先（每次做片/做卡前）：
 - 用户提到续作、同主题、再出一期、或明确主题名：先 lookup_topic_assets(topic=…)
 - 有命中：先告诉用户本地已有期刊/证据/短视频，问「复用还是重新深采/重做」；不要默默再 scrape
+- 用户提到已抓取的文章/笔记/知识库内容时，用 query_knowledge_base 搜索本地知识库
+- 用户贴 URL 时自动 fetch_url_text 抓取并写入知识库
 - propose_knowledge_cards / propose_short_video 的返回里若带 local_assets，必须在回复里点名这些资产
 
 轨道路由（未确认前禁止 propose）：
@@ -194,7 +197,8 @@ class AgentLoop:
         state = normalize_agent_state(agent_state)
         mode = detect_mode(messages, agent_state=state, brief=brief)
         state["mode"] = mode
-        rounds = 6 if mode == "produce" else min(2, self.max_tool_rounds)
+        # 资料库类任务需要 read→作答至少 3 轮；弱模型可能先试错几次别的工具
+        rounds = 6 if mode == "produce" else max(6, min(6, self.max_tool_rounds))
 
         sys_parts = [system_prompt.strip()] if system_prompt.strip() else []
         if mode == "produce":

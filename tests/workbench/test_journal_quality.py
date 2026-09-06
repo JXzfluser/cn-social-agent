@@ -21,6 +21,37 @@ def test_short_step_cjk_no_dangling_connector():
     assert "效" not in s or s.endswith("效率") or len(s) < 16
 
 
+def test_short_step_strips_short_dangling_connector():
+    # Regression: 6-char items ending in a CJK connector (整体流程中的) took the
+    # early return `len(head) <= n` unchanged, then failed the flow gate.
+    for broken in ("整体流程中的", "通过中间件与", "部署到环境中的"):
+        fixed = short_step(broken)
+        assert not fixed.endswith(("的", "中", "与", "到"))
+        assert fixed != broken
+
+
+def test_normalize_flow_heals_short_dangling_without_point_match():
+    # Regression: _flow_item_looks_cut only flagged dangling connectors at len>=8,
+    # while the gate flags at len>=6 — 6-7 char cuts were kept and failed the gate.
+    pts = ["关键步骤一", "关键步骤二"]
+    broken = ["整体流程中的", "通过中间件与"]
+    fixed = normalize_flow(broken, pts)
+    assert fixed
+    assert not any(str(f).endswith(("的", "中", "与")) for f in fixed)
+    assert report_flow_clean(fixed)
+
+
+def report_flow_clean(flow: list[str]) -> bool:
+    payload = {
+        "cover": {"title": "T", "description": "D", "marketNote": "M"},
+        "frontMatter": {"guide": {"promises": ["a", "b", "c"]}, "toc": [{"index": 1}]},
+        "knowledge": [
+            {"topicTitle": "t1", "card_kind": "concept", "realPoints": ["p1", "p2"], "flow": flow}
+        ],
+    }
+    return journal_depth_report(payload).get("checks", {}).get("flow_not_truncated", False)
+
+
 def test_normalize_flow_heals_mid_phrase_cuts():
     pts = [
         "解决开发者在重复性编码任务中的效率瓶颈",

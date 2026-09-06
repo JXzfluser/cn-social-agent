@@ -109,6 +109,34 @@ async def chat(request: web.Request) -> web.StreamResponse:
         sys_extra.append(prefs_prompt_block(prefs))
         if brief:
             sys_extra.append(brief)
+    # 资料库 RAG：先注入清单，再把与用户消息最相关的资料片段直接放进上下文
+    try:
+        from cn_social_agent.tools.reference_library import reference_library
+
+        _lib = reference_library.list(user_id)
+        if _lib:
+            lines = "\n".join(f'- {i["name"]}（id: {i["id"]}）' for i in _lib[:10])
+            rag_parts: list[str] = [
+                f"用户资料库现有 {len(_lib)} 份参考资料：\n{lines}\n"
+                "若需要完整原文：调用 library_read(id=\"...\")。"
+                "不要让用户重新粘贴，不要用 http_get 等其他工具去找这些本地资料。"
+            ]
+            last_user_msg = ""
+            for m in reversed(messages or []):
+                if (m.get("role") or "") == "user" and (m.get("content") or "").strip():
+                    last_user_msg = str(m["content"])
+                    break
+            if last_user_msg:
+                hits = reference_library.retrieve(user_id, last_user_msg)
+                for h in hits:
+                    rag_parts.append(
+                        f"【资料片段 · {h['name']}】（与本次提问相关度 {h['score']}，"
+                        f"{'已截断，可用 library_read 读全文' if h['truncated'] else '完整片段'}）\n{h['snippet']}"
+                    )
+            if rag_parts:
+                sys_extra.append("\n\n".join(rag_parts))
+    except Exception:  # noqa: BLE001 — 提示注入失败不阻塞对话
+        pass
     system_prompt = "\n\n".join(sys_extra)
 
     # Per-request model: Fast/Strong smart route (provider stays process-global)

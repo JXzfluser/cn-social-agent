@@ -25,6 +25,8 @@ DEFAULT_PREFS: dict[str, Any] = {
     "automation_last_run": {},
     "automation_runs": [],
     "canvas_scratch": {},
+    "im_webhook": {},
+    "custom_templates": [],
 }
 
 _ALLOWED_ANGLES = frozenset({"intro", "compare", "deep_analysis", "idea", "general"})
@@ -42,6 +44,25 @@ def normalize_video_track(raw: Any) -> str:
     if t in ("koubo", "口播", "口播短视频", "short", "short_video"):
         return "koubo"
     return ""
+
+
+def _clean_custom_connectors(raw: Any) -> list[dict[str, Any]]:
+    """Sanitize user-defined connector rows stored in prefs."""
+    out: list[dict[str, Any]] = []
+    for row in raw if isinstance(raw, list) else []:
+        if not isinstance(row, dict) or not str(row.get("id") or "").strip():
+            continue
+        out.append({
+            "id": str(row.get("id")).strip()[:60],
+            "label": str(row.get("label") or "").strip()[:80],
+            "direction": "publish" if row.get("direction") == "publish" else "ingest",
+            "description": str(row.get("description") or "").strip()[:200],
+            "url": str(row.get("url") or "").strip()[:300],
+            "kind": "custom",
+            "category": "custom",
+            "custom": True,
+        })
+    return out[:100]
 
 
 def normalize_prefs(raw: dict[str, Any] | None) -> dict[str, Any]:
@@ -134,6 +155,27 @@ def normalize_prefs(raw: dict[str, Any] | None) -> dict[str, Any]:
         else [],
         "updated_at": str(scratch_raw.get("updated_at") or ""),
     }
+    im_raw = src.get("im_webhook")
+    im_webhook = {
+        "enabled": bool(im_raw.get("enabled", True)),
+        "secret": str(im_raw.get("secret") or "").strip()[:64],
+    } if isinstance(im_raw, dict) else {"enabled": True, "secret": ""}
+    tpl_out: list[dict[str, str]] = []
+    for t in src.get("custom_templates") if isinstance(src.get("custom_templates"), list) else []:
+        if not isinstance(t, dict):
+            continue
+        title = str(t.get("title") or "").strip()[:60]
+        prompt = str(t.get("prompt") or "").strip()[:4000]
+        if not title or not prompt:
+            continue
+        tpl_out.append({
+            "id": str(t.get("id") or "").strip()[:40] or f"tpl_{len(tpl_out)+1}_{abs(hash(title)) % 100000}",
+            "title": title,
+            "desc": str(t.get("desc") or "").strip()[:200],
+            "prompt": prompt,
+        })
+        if len(tpl_out) >= 50:
+            break
     return {
         "default_audience": str(src.get("default_audience") or "").strip()[:120],
         "default_voice": voice,
@@ -158,6 +200,9 @@ def normalize_prefs(raw: dict[str, Any] | None) -> dict[str, Any]:
         "automation_last_run": auto["automation_last_run"],
         "automation_runs": auto["automation_runs"],
         "canvas_scratch": scratch,
+        "custom_connectors": _clean_custom_connectors(src.get("custom_connectors")),
+        "im_webhook": im_webhook,
+        "custom_templates": tpl_out,
     }
 
 
@@ -231,6 +276,10 @@ def merge_prefs(current: dict[str, Any] | None, patch: dict[str, Any]) -> dict[s
         data["automation_runs"] = [x for x in patch["automation_runs"] if isinstance(x, dict)][:30]
     if "canvas_scratch" in patch and isinstance(patch["canvas_scratch"], dict):
         data["canvas_scratch"] = patch["canvas_scratch"]
+    if "custom_connectors" in patch and isinstance(patch["custom_connectors"], list):
+        data["custom_connectors"] = patch["custom_connectors"]
+    if "custom_templates" in patch and isinstance(patch["custom_templates"], list):
+        data["custom_templates"] = patch["custom_templates"]
     return normalize_prefs(data)
 
 

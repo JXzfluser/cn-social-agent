@@ -154,6 +154,57 @@ async def post_hotspot_handoff(request: web.Request) -> web.Response:
     return web.json_response(out, status=200)
 
 
+@require_user
+async def hotspot_angles(request: web.Request) -> web.Response:
+    """LLM 为一条热点生成 3 个选题角度（对标新榜/蝉妈妈的选题建议）。"""
+    import asyncio
+    import json as _json
+    import re as _re
+
+    state = get_state(request)
+    llm = getattr(state.agent, "llm", None) if state.agent else None
+    if llm is None:
+        return web.json_response({"error": "llm not configured"}, status=503)
+    body = await request.json() if request.can_read_body else {}
+    title = str(body.get("title") or "").strip()[:200]
+    if not title:
+        return web.json_response({"error": "title required"}, status=400)
+    desc = str(body.get("description") or "").strip()[:400]
+    source = str(body.get("source") or "").strip()[:40]
+    system = (
+        "你是内容策划。针对给定热点，面向中国程序员/独立开发者受众，提出 3 个差异化选题角度。"
+        '只输出 JSON：{"angles":[{"title":"视频标题","angle":"切入角度一句话","why":"为什么现在做"}]}。'
+        "角度要接地气：能蹭热度、能落到实操、或能给出反常识观点。"
+    )
+    user = f"热点来源：{source}\n热点标题：{title}\n热点摘要：{desc}"
+    try:
+        data = await asyncio.wait_for(
+            llm.chat_completion(
+                [{"role": "system", "content": system}, {"role": "user", "content": user}]
+            ),
+            timeout=90,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return web.json_response({"error": f"llm_failed: {exc}"}, status=502)
+    content = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") if isinstance(data, dict) else data
+    text = str(content or "")
+    angles: list = []
+    try:
+        angles = _json.loads(text).get("angles") or []
+    except _json.JSONDecodeError:
+        m = _re.search(r"\{[\s\S]*\}", text)
+        if m:
+            try:
+                angles = _json.loads(m.group(0)).get("angles") or []
+            except _json.JSONDecodeError:
+                angles = []
+    angles = [a for a in angles if isinstance(a, dict) and str(a.get("title") or "").strip()][:3]
+    if not angles:
+        return web.json_response({"error": "empty angles, try again"}, status=502)
+    return web.json_response({"ok": True, "angles": angles})
+
+
 def setup_hotspots_routes(app: web.Application) -> None:
     app.router.add_get("/api/hotspots", get_hotspots)
     app.router.add_post("/api/hotspots/handoff", post_hotspot_handoff)
+    app.router.add_post("/api/hotspots/angles", hotspot_angles)

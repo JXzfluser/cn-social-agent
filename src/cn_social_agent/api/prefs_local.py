@@ -28,6 +28,8 @@ EXTRA_KEYS: tuple[str, ...] = (
     "automation_last_run",
     "automation_runs",
     "canvas_scratch",
+    "custom_templates",
+    "im_webhook",
 )
 
 

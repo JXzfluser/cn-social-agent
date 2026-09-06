@@ -111,6 +111,8 @@
       motion: "kenburns",
       content_angle: angle,
       render_mode: "local",
+      threejs_transitions: $("threejsTransitions") ? $("threejsTransitions").checked : false,
+      threejs_cards: $("threejsCards") ? $("threejsCards").checked : false,
       ...extra,
     };
   }

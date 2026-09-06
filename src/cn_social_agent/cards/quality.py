@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from cn_social_agent.cards.build import looks_truncated
+from cn_social_agent.cards.build import DANGLING_TAIL_RE, looks_truncated
 
 _SHALLOW_RE = re.compile(
     r"(今天讲一下|简单介绍|众所周知|赋能|干货满满|一文读懂|未来可期|抓住机遇)",
@@ -30,7 +30,7 @@ def _flow_item_broken(item: str, points: list[str]) -> bool:
     if looks_truncated(s):
         return True
     # Dangling CJK connector — typical mid-phrase cut (…中的 / …与)
-    if len(s) >= 6 and re.search(r"[的中与和及了在为到从把被]$", s):
+    if len(s) >= 6 and DANGLING_TAIL_RE.search(s):
         return True
     return False
 

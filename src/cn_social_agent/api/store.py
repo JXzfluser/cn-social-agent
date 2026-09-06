@@ -88,6 +88,8 @@ class Store(ABC):
 class MemoryStore(Store):
     """Process-local store for tests and offline bootstrapping."""
 
+    _TOKEN_FILE = "data/wb_tokens.json"
+
     def __init__(self) -> None:
         self.sessions: dict[str, dict[str, Any]] = {}
         self.messages: dict[str, list[dict[str, Any]]] = {}
@@ -96,8 +98,30 @@ class MemoryStore(Store):
         self.media: dict[str, dict[str, Any]] = {}
         self.users: dict[str, dict[str, str]] = {}
         self.tokens: dict[str, str] = {}
-        # Local demo account (UI defaults)
+        self._load_tokens()
         self.register_user("demo@local.test", "demo123456")
+
+    def _load_tokens(self) -> None:
+        try:
+            import os
+            path = self._TOKEN_FILE
+            if os.path.exists(path):
+                with open(path, "r") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        self.tokens.update(data)
+        except Exception:
+            pass
+
+    def _save_tokens(self) -> None:
+        try:
+            import os
+            path = self._TOKEN_FILE
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                json.dump(self.tokens, f)
+        except Exception:
+            pass
 
     def ensure_demo_user(self) -> None:
         if "demo@local.test" not in self.users:
@@ -118,6 +142,7 @@ class MemoryStore(Store):
             return None
         token = secrets.token_urlsafe(24)
         self.tokens[token] = user["id"]
+        self._save_tokens()
         return {"accessToken": token, "user": {"id": user["id"], "email": email}}
 
     def user_id_for_token(self, token: str) -> Optional[str]:

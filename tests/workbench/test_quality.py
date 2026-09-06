@@ -120,3 +120,98 @@ def test_apply_template_defaults_product_update():
     assert styles["default_seconds"] == 15
     ids = {t["id"] for t in styles["templates"]}
     assert ids == {"product_update", "tech_rant", "tutorial"}
+
+
+# ---------------------------------------------------------------------------
+# P1/P2 quality gate tests
+# ---------------------------------------------------------------------------
+
+def test_scene_quality_passes_on_valid_clip(monkeypatch, tmp_path):
+    import json
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"fake")
+    monkeypatch.setattr(
+        quality,
+        "_run_ffprobe",
+        lambda _p: {
+            "format": {"duration": "3.5"},
+            "streams": [
+                {"codec_type": "video", "width": 1080, "height": 1920, "duration": "3.5"},
+                {"codec_type": "audio", "duration": "3.5"},
+            ],
+        },
+    )
+    import json
+    scene = {"scene_num": 1, "image_path": json.dumps({"role": "hook", "on_screen": "标题"})}
+    r = quality.check_scene_quality(scene, path, role="hook")
+    assert r.passed is True
+    assert r.metrics["width"] == 1080
+    assert r.metrics["height"] == 1920
+    assert r.metrics["has_subtitle"] is True
+
+
+def test_scene_quality_fails_on_bad_resolution(monkeypatch, tmp_path):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"fake")
+    monkeypatch.setattr(
+        quality,
+        "_run_ffprobe",
+        lambda _p: {
+            "format": {"duration": "3.0"},
+            "streams": [
+                {"codec_type": "video", "width": 640, "height": 480, "duration": "3.0"},
+                {"codec_type": "audio", "duration": "3.0"},
+            ],
+        },
+    )
+    scene = {"scene_num": 1, "image_path": ""}
+    r = quality.check_scene_quality(scene, path, role="value")
+    assert r.passed is False
+    assert any("分辨率" in x for x in r.reasons)
+
+
+def test_scene_quality_fails_on_hook_too_long(monkeypatch, tmp_path):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"fake")
+    monkeypatch.setattr(
+        quality,
+        "_run_ffprobe",
+        lambda _p: {
+            "format": {"duration": "8.0"},
+            "streams": [
+                {"codec_type": "video", "width": 1080, "height": 1920, "duration": "8.0"},
+                {"codec_type": "audio", "duration": "8.0"},
+            ],
+        },
+    )
+    scene = {"scene_num": 1, "image_path": ""}
+    r = quality.check_scene_quality(scene, path, role="hook")
+    assert r.passed is False
+    assert any("钩子时长" in x for x in r.reasons)
+
+
+def test_scene_quality_warns_on_bad_aspect_ratio(monkeypatch, tmp_path):
+    path = tmp_path / "clip.mp4"
+    path.write_bytes(b"fake")
+    monkeypatch.setattr(
+        quality,
+        "_run_ffprobe",
+        lambda _p: {
+            "format": {"duration": "3.0"},
+            "streams": [
+                {"codec_type": "video", "width": 1920, "height": 1080, "duration": "3.0"},
+                {"codec_type": "audio", "duration": "3.0"},
+            ],
+        },
+    )
+    scene = {"scene_num": 1, "image_path": ""}
+    r = quality.check_scene_quality(scene, path, role="value")
+    assert r.passed is False
+    assert any("宽高比" in x for x in r.reasons)
+
+
+def test_scene_quality_missing_clip():
+    scene = {"scene_num": 1, "image_path": ""}
+    r = quality.check_scene_quality(scene, Path("/no/such/file.mp4"), role="value")
+    assert r.passed is False
+    assert any("missing" in x for x in r.reasons)

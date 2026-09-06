@@ -175,6 +175,9 @@ async def build(request: web.Request) -> web.Response:
     if err:
         return web.json_response({"error": err}, status=409)
     root = presentation_dir(project["id"])
+    # Scaffold 会重建目录——先备份 slide 内容（chapters 只存 content.json），建完恢复，
+    # 否则「draft → build」顺序会静默丢掉全部章节内容。
+    prev_content = load_content_json(project["id"])
     if not (root / "package.json").is_file():
         aspect = normalize_aspect(str(meta.get("aspect") or "9:16"))
         theme = str(meta.get("theme") or "talent-map")
@@ -188,6 +191,8 @@ async def build(request: web.Request) -> web.Response:
             )
         except FileNotFoundError as e:
             return web.json_response({"error": str(e)}, status=500)
+        if (prev_content.get("chapters") or prev_content.get("full_script")):
+            save_content_json(project["id"], prev_content)
         meta["presentation_path"] = str(presentation_dir(project["id"]))
         meta["aspect"] = aspect
         meta["theme"] = theme
@@ -288,6 +293,11 @@ async def serve_presentation(request: web.Request) -> web.StreamResponse:
             status=404,
         )
     rel = (request.match_info.get("path") or "").lstrip("/")
+    if not rel:
+        if not request.path.endswith("/"):
+            # 无尾斜杠时 ./assets 相对路径会解析到上一级导致 404——重定向规范到带斜杠 URL
+            qs = "?" + request.query_string if request.query_string else ""
+            raise web.HTTPFound(f"/api/video/projects/{project['id']}/presentation/{qs}")
     if not rel or rel.endswith("/"):
         target = root / "index.html"
     else:
@@ -299,7 +309,15 @@ async def serve_presentation(request: web.Request) -> web.StreamResponse:
     if not target.is_file():
         # SPA fallback
         target = root / "index.html"
-    return web.FileResponse(target)
+    resp = web.FileResponse(target)
+    # Query-token 场景：首屏 HTML 下发 cookie，让同源 asset/content 子请求自动携带
+    # （_extract_access_token 优先读 header，其次 wb_token cookie）。
+    if not request.cookies.get("wb_token") and request["access_token"]:
+        resp.set_cookie(
+            "wb_token", request["access_token"],
+            httponly=True, samesite="Lax", path="/",
+        )
+    return resp
 
 
 @require_user

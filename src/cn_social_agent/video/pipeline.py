@@ -8,11 +8,12 @@ import os
 import re
 import shutil
 import subprocess
-import wave
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
+
+from cn_social_agent.video.ffmpeg_utils import audio_duration, ffmpeg_has_filter
 
 FUNNEL_KEYS = (
     "t_created",
@@ -437,6 +438,55 @@ _ROLE_MOTION = {
     "cta": "pull_back",
 }
 
+THREEJS_TRANSITIONS_ENABLED = os.getenv("THREEJS_TRANSITIONS", "0") == "1"
+
+_ROLE_TRANSITION: dict[str, str] = {
+    "hook": "particle_converge",
+    "pain": "depth_blur",
+    "context": "light_sweep",
+    "thesis": "camera_flythrough",
+    "evidence": "light_sweep",
+    "pattern": "glitch_reveal",
+    "verdict": "particle_converge",
+    "value": "light_sweep",
+    "steps": "camera_flythrough",
+    "proof": "depth_blur",
+    "compare": "glitch_reveal",
+    "pitfall": "glitch_reveal",
+    "cta": "particle_converge",
+}
+
+
+async def render_threejs_transition(
+    root: Path,
+    idx: int,
+    transition_type: str,
+    text: str = "",
+    accent_color: tuple[int, int, int] = (255, 90, 70),
+) -> Path | None:
+    """Render a Three.js transition clip. Returns None if render fails."""
+    if not THREEJS_TRANSITIONS_ENABLED:
+        return None
+
+    clip = root / f"transition_{idx}.mp4"
+    if clip.is_file():
+        return clip
+
+    try:
+        from cn_social_agent.video.threejs.renderer import render_transition
+        await render_transition(
+            transition_type=transition_type,
+            text=text,
+            accent_color=accent_color,
+            output_path=clip,
+            duration=1.5,
+            resolution=(1080, 1920),
+            fps=30,
+        )
+        return clip if clip.is_file() else None
+    except Exception:
+        return None
+
 
 def duration_plan(seconds: int) -> dict[str, int]:
     """Scene/char budget so TTS can actually fill 1–3 minute videos."""
@@ -849,6 +899,8 @@ async def generate_script(
     motion: str = "kenburns",
     render_mode: str = "local",
     content_angle: str = "general",
+    threejs_transitions: bool = False,
+    threejs_cards: bool = False,
 ) -> dict[str, Any]:
     plan = duration_plan(seconds)
     seconds = plan["seconds"]
@@ -1062,6 +1114,8 @@ async def generate_script(
     data["motion"] = motion
     data["render_mode"] = render_mode
     data["content_angle"] = content_angle
+    data["threejs_transitions"] = threejs_transitions
+    data["threejs_cards"] = threejs_cards
     data["fail_reason"] = ""
     data["delivery_level"] = data.get("delivery_level") or ""
     data["storyboard_confirmed"] = False
@@ -1457,34 +1511,13 @@ def _unlink_quiet(path: Path) -> None:
         pass
 
 
-def _audio_duration(path: Path) -> float:
-    # Prefer ffprobe
-    try:
-        r = subprocess.run(
-            [
-                "ffprobe",
-                "-v",
-                "error",
-                "-show_entries",
-                "format=duration",
-                "-of",
-                "default=noprint_wrappers=1:nokey=1",
-                str(path),
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return float(r.stdout.strip())
-    except Exception:
-        if path.suffix.lower() == ".wav":
-            with wave.open(str(path), "rb") as w:
-                return w.getnframes() / float(w.getframerate())
-        return 3.0
-
-
 async def synthesize_tts(
-    text: str, out_mp3: Path, *, voice: str = "zh-CN-XiaoxiaoNeural"
+    text: str,
+    out_mp3: Path,
+    *,
+    voice: str = "zh-CN-XiaoxiaoNeural",
+    rate: str = "+0%",
+    pitch: str = "+0Hz",
 ) -> float:
     speak = speakable_narration(text)
     if not speak:
@@ -1508,7 +1541,7 @@ async def synthesize_tts(
         _unlink_quiet(out_mp3)
         try:
             if use_api:
-                communicate = edge_tts.Communicate(speak, voice)
+                communicate = edge_tts.Communicate(speak, voice, rate=rate, pitch=pitch)
                 await communicate.save(str(out_mp3))
             elif edge_cli:
                 await _run(
@@ -1516,6 +1549,10 @@ async def synthesize_tts(
                         edge_cli,
                         "--voice",
                         voice,
+                        "--rate",
+                        rate,
+                        "--pitch",
+                        pitch,
                         "--text",
                         speak,
                         "--write-media",
@@ -1525,7 +1562,7 @@ async def synthesize_tts(
             else:
                 raise RuntimeError("未安装 edge-tts（pip install edge-tts）")
             if out_mp3.is_file() and out_mp3.stat().st_size > 0:
-                return _audio_duration(out_mp3)
+                return audio_duration(out_mp3)
             raise RuntimeError("edge-tts 未写出音频文件")
         except BaseException as exc:  # noqa: BLE001
             last_err = exc
@@ -1922,6 +1959,7 @@ def render_scene_image(
     bg_theme: str = "night",
     reveal: float = 1.0,
     anim_shift: int = 0,
+    background: Optional[Path] = None,
 ) -> None:
     """Vertical 1080x1920 card — role-specific plates so scenes look different."""
     w, h = 1080, 1920
@@ -1940,25 +1978,43 @@ def render_scene_image(
     img = Image.new("RGB", (w, h), base)
     draw = ImageDraw.Draw(img)
 
-    for y in range(h):
-        t = y / h
-        color = (
-            int(base[0] + (accent[0] - base[0]) * 0.28 * (1 - t)),
-            int(base[1] + (accent[1] - base[1]) * 0.22 * (1 - t)),
-            int(base[2] + (accent[2] - base[2]) * 0.30 * (1 - t)),
-        )
-        draw.line([(0, y), (w, y)], fill=color)
+    use_bg_image = False
+    # 外部背景图（ComfyUI 生成等）：cover 裁剪铺满 + 暗化蒙层保证文字可读
+    if background is not None and Path(background).is_file():
+        try:
+            bg = Image.open(Path(background)).convert("RGB")
+            scale = max(w / bg.width, h / bg.height)
+            bg = bg.resize((int(bg.width * scale) + 1, int(bg.height * scale) + 1))
+            left = (bg.width - w) // 2
+            top = (bg.height - h) // 2
+            img.paste(bg.crop((left, top, left + w, top + h)))
+            overlay = Image.new("RGB", (w, h), (10, 12, 22))
+            img = Image.blend(img, overlay, 0.42)
+            draw = ImageDraw.Draw(img)
+            use_bg_image = True
+        except Exception:  # noqa: BLE001 — 背景坏文件回落默认渐变
+            pass
 
-    for i in range(-2, 6):
-        x = -200 + i * 220 + scene_num * 47
-        draw.polygon(
-            [(x, 0), (x + 90, 0), (x + 520, h), (x + 430, h)],
-            fill=(
-                min(255, base[0] + 18 + i * 2),
-                min(255, base[1] + 14 + i * 2),
-                min(255, base[2] + 22 + i * 2),
-            ),
-        )
+    if not use_bg_image:
+        for y in range(h):
+            t = y / h
+            color = (
+                int(base[0] + (accent[0] - base[0]) * 0.28 * (1 - t)),
+                int(base[1] + (accent[1] - base[1]) * 0.22 * (1 - t)),
+                int(base[2] + (accent[2] - base[2]) * 0.30 * (1 - t)),
+            )
+            draw.line([(0, y), (w, y)], fill=color)
+
+        for i in range(-2, 6):
+            x = -200 + i * 220 + scene_num * 47
+            draw.polygon(
+                [(x, 0), (x + 90, 0), (x + 520, h), (x + 430, h)],
+                fill=(
+                    min(255, base[0] + 18 + i * 2),
+                    min(255, base[1] + 14 + i * 2),
+                    min(255, base[2] + 22 + i * 2),
+                ),
+            )
 
     if pattern == "stars":
         for i in range(70):
@@ -2149,6 +2205,8 @@ def _build_motion_vf(
     return f"{base},{overlays},{fades}"
 
 
+THREEJS_CARDS_ENABLED = os.getenv("THREEJS_CARDS", "0") == "1"
+
 def write_scene_keyframes(
     key_dir: Path,
     *,
@@ -2159,17 +2217,48 @@ def write_scene_keyframes(
     key_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
     n_keys = max(4, min(12, int(n_keys)))
+
+    use_threejs = THREEJS_CARDS_ENABLED
+    threejs_renderer = None
+    if use_threejs:
+        try:
+            from cn_social_agent.video.threejs.card_renderer import render_card_sync
+            threejs_renderer = render_card_sync
+        except ImportError:
+            use_threejs = False
+
     for i in range(n_keys):
-        # Ease-in reveal so early frames change fast (reads as typing)
         t = (i + 1) / n_keys
         reveal = 0.12 + 0.88 * (t ** 0.75)
         path = key_dir / f"k_{i:02d}.png"
-        render_scene_image(
-            path,
-            reveal=reveal,
-            anim_shift=i,
-            **card_kwargs,
-        )
+
+        if use_threejs and threejs_renderer:
+            try:
+                role = card_kwargs.get("role", "value")
+                bg_theme = card_kwargs.get("bg_theme", "night")
+                theme = BG_THEMES.get(bg_theme, BG_THEMES.get("night", {}))
+                bg_color = tuple(theme.get("base", (10, 14, 18)))
+
+                from cn_social_agent.video.pipeline import ROLE_COLORS
+                role_key = (role or "value").lower()
+                accent = ROLE_COLORS.get(role_key, ROLE_COLORS.get("value", ((255, 90, 70), "")))[0]
+
+                threejs_renderer(
+                    output_path=path,
+                    title=card_kwargs.get("title", ""),
+                    subtitle=card_kwargs.get("on_screen", ""),
+                    role=role,
+                    scene_num=card_kwargs.get("scene_num", 1),
+                    total=card_kwargs.get("total", 1),
+                    accent_color=accent,
+                    bg_color=bg_color,
+                    reveal=reveal,
+                )
+            except Exception:
+                render_scene_image(path, reveal=reveal, anim_shift=i, **card_kwargs)
+        else:
+            render_scene_image(path, reveal=reveal, anim_shift=i, **card_kwargs)
+
         paths.append(path)
     return paths
 
@@ -2325,20 +2414,67 @@ def _ffmpeg_drawtext_escape(text: str) -> str:
     )
 
 
-@lru_cache(maxsize=8)
-def ffmpeg_has_filter(name: str) -> bool:
-    """Homebrew ffmpeg 8.x ships without libfreetype, so drawtext may be absent."""
+def agnes_num_frames(duration_seconds: float, fps: int = 24, max_frames: int = 241) -> int:
+    """Calculate Agnes num_frames for a given duration.
+
+    Agnes requires 8n+1 frames (n>=1). We align up to the next valid
+    count and cap at ``max_frames`` (resolution-specific; 1080×1920/9:16
+    is capped at 241 ≈ 10s, smaller resolutions allow up to 441).
+    """
+    ideal = max(9, round(duration_seconds * fps))
+    n = max(1, -(-  (ideal - 1) // 8))  # ceil((ideal-1)/8)
+    return min(8 * n + 1, max_frames)
+
+
+def _agnes_max_frames(width: int, height: int) -> int:
+    """Agnes frame cap per resolution (must stay 8n+1: 241=8·30+1, 441=8·55+1)."""
+    if (width, height) == (1080, 1920):
+        return 241  # API hard cap for 1080p/9:16
+    return 441
+
+
+_AGNES_RESOLUTION_CACHE: dict[str, tuple[int, int]] = {}
+
+
+async def probe_agnes_resolution() -> tuple[int, int]:
+    """Probe whether Agnes accepts 1080×1920; fallback to 768×1344.
+
+    Result is cached in-process so subsequent calls are free.
+    """
+    cached = _AGNES_RESOLUTION_CACHE.get("agnes")
+    if cached:
+        return cached
+
+    from cn_social_agent.video.agnes_client import AgnesVideoClient
+
+    if not AgnesVideoClient.configured():
+        return (768, 1344)
+
     try:
-        r = subprocess.run(
-            ["ffmpeg", "-hide_banner", "-filters"],
-            capture_output=True,
-            text=True,
-            timeout=20,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-    pattern = re.compile(rf"^\s*\S+\s+{re.escape(name)}\s", re.M)
-    return bool(pattern.search(r.stdout or ""))
+        client = AgnesVideoClient()
+        import tempfile, os
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+        try:
+            await client.generate_to_file(
+                "test resolution probe",
+                tmp_path,
+                width=1080,
+                height=1920,
+                num_frames=9,
+                frame_rate=24,
+            )
+            result = (1080, 1920)
+        except Exception:
+            result = (768, 1344)
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink()
+    except Exception:
+        result = (768, 1344)
+
+    _AGNES_RESOLUTION_CACHE["agnes"] = result
+    return result
 
 
 def write_caption_overlay(out_png: Path, text: str, *, width: int, height: int) -> Path:
@@ -2363,15 +2499,19 @@ def write_caption_overlay(out_png: Path, text: str, *, width: int, height: int) 
     return out_png
 
 
-async def mux_video_audio(
+def build_mux_plan(
     video: Path,
     audio: Path,
     out_mp4: Path,
     duration: float,
     *,
     overlay_text: str = "",
-) -> None:
-    """Loop/crop Agnes video to match TTS; burn in on_screen caption when possible."""
+) -> tuple[list[str], Path | None]:
+    """Pure function: build the ffmpeg command for muxing video + audio.
+
+    Returns (cmd, caption_plate) where caption_plate is the PNG path
+    if a drawtext-less overlay was generated, else None.
+    """
     dur = max(duration, 0.8)
     base_vf = "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920"
     caption = (overlay_text or "").strip()[:22]
@@ -2422,6 +2562,21 @@ async def mux_video_audio(
         "-shortest",
         str(out_mp4),
     ]
+    return cmd, plate
+
+
+async def mux_video_audio(
+    video: Path,
+    audio: Path,
+    out_mp4: Path,
+    duration: float,
+    *,
+    overlay_text: str = "",
+) -> None:
+    """Loop/crop Agnes video to match TTS; burn in on_screen caption when possible."""
+    cmd, _plate = build_mux_plan(
+        video, audio, out_mp4, duration, overlay_text=overlay_text
+    )
     await _run(cmd)
 
 
@@ -2597,6 +2752,21 @@ async def remux_project_final(project_id: str, n_scenes: int) -> tuple[str, floa
     return str(final), total
 
 
+def scene_voice_profile(idx: int, total_scenes: int, role: str = "") -> tuple[str, str]:
+    """按镜序/角色给出 TTS 语速与音调，让全片有节奏起伏（对标真人口播的表现力）。
+
+    - 首镜（钩子）：稍快稍亮，抓住注意力
+    - CTA/末镜：放慢，给行动号召留呼吸
+    - 中段干货：标准语速
+    """
+    role = (role or "").strip().lower()
+    if idx <= 1:
+        return "+7%", "+3Hz"
+    if role in ("cta", "action", "outro") or idx >= total_scenes:
+        return "-5%", "-1Hz"
+    return "+0%", "+0Hz"
+
+
 async def render_one_scene(
     *,
     project_id: str,
@@ -2612,14 +2782,21 @@ async def render_one_scene(
     motion: str = "kenburns",
     render_mode: str = "local",
     refresh: str = "all",
+    engine: str | None = None,
 ) -> dict[str, Any]:
     """Render a single scene clip. refresh: all | tts+clip | clip | tts.
 
+    engine: override render_mode via engine name (e.g. "agnes", "local").
     Returns updated fields for DB persist (tts_path, image_path meta, duration).
     """
     root = project_dir(project_id)
     bg_theme = bg_theme if bg_theme in BG_THEMES else "night"
     motion = motion if motion in MOTIONS else "kenburns"
+    # engine param overrides render_mode
+    if engine:
+        from cn_social_agent.video.engines import get_engine
+        if get_engine(engine) is not None:
+            render_mode = "agnes-video" if engine == "agnes" else engine
     render_mode = render_mode if render_mode in ("local", "agnes-video") else "local"
     refresh = (refresh or "all").lower()
 
@@ -2649,9 +2826,11 @@ async def render_one_scene(
     )
 
     if need_tts:
-        dur = await synthesize_tts(narration, audio, voice=voice)
+        role_hint = meta.get("role") or scene.get("role") or ""
+        v_rate, v_pitch = scene_voice_profile(idx, total_scenes, role_hint)
+        dur = await synthesize_tts(narration, audio, voice=voice, rate=v_rate, pitch=v_pitch)
     else:
-        dur = _audio_duration(audio) if audio.is_file() else 1.0
+        dur = audio_duration(audio) if audio.is_file() else 1.0
 
     role = meta.get("role") or scene.get("role") or "value"
 
@@ -2669,12 +2848,13 @@ async def render_one_scene(
                 bg_theme=bg_theme,
                 cover_hook=cover_hook or title,
             )
+            width, height = await probe_agnes_resolution()
             await agnes.generate_to_file(
                 prompt,
                 agnes_raw,
-                width=768,
-                height=1344,
-                num_frames=121,
+                width=width,
+                height=height,
+                num_frames=agnes_num_frames(dur, max_frames=_agnes_max_frames(width, height)),
                 frame_rate=24,
             )
         if not agnes_raw.is_file():
@@ -2719,20 +2899,59 @@ async def render_one_scene(
             cta=cta,
             bg_theme=bg_theme,
         )
-        n_keys = max(6, min(10, int(round(dur * 2.2))))
-        keys = write_scene_keyframes(
-            root / f"scene_{idx}_keys", n_keys=n_keys, **card_kwargs
-        )
-        shutil.copyfile(keys[-1], image)
-        await render_scene_clip(
-            image,
-            audio,
-            clip,
-            dur,
-            motion=scene_motion,
-            role=str(role),
-            keyframes=keys,
-        )
+        comfy_bg: Path | None = None
+        if render_mode == "comfyui":
+            # 预生成优先：comfy_bg/scene_N_bg.png 已存在（外部预生成/浏览器桥产出）则直接用
+            prebuilt = root / "comfy_bg" / f"scene_{idx}_bg.png"
+            if prebuilt.is_file() and prebuilt.stat().st_size > 1000:
+                comfy_bg = prebuilt
+            else:
+                try:
+                    from cn_social_agent.video.comfy_client import available, generate_to_file
+
+                    if not available():
+                        raise RuntimeError("ComfyUI 不可达（检查 COMFYUI_URL）")
+                    comfy_bg = root / f"scene_{idx}_bg.png"
+                    await generate_to_file(
+                        comfy_bg,
+                        title=title,
+                        on_screen=meta.get("on_screen") or "",
+                        narration=narration,
+                        visual=meta.get("visual") or "",
+                        bg_theme=bg_theme,
+                    )
+                except Exception as exc:  # noqa: BLE001 — ComfyUI 失败回落 local 背景
+                    print(f"[pipeline] ComfyUI scene {idx} fallback to local: {exc}")
+                    comfy_bg = None
+        if comfy_bg is not None:
+            render_scene_image(
+                image,
+                **card_kwargs,
+                background=comfy_bg,
+            )
+            await render_scene_clip(
+                image,
+                audio,
+                clip,
+                dur,
+                motion="kenburns",
+                role=str(role),
+            )
+        else:
+            n_keys = max(6, min(10, int(round(dur * 2.2))))
+            keys = write_scene_keyframes(
+                root / f"scene_{idx}_keys", n_keys=n_keys, **card_kwargs
+            )
+            shutil.copyfile(keys[-1], image)
+            await render_scene_clip(
+                image,
+                audio,
+                clip,
+                dur,
+                motion=scene_motion,
+                role=str(role),
+                keyframes=keys,
+            )
 
     meta["scene_render_mode"] = render_mode
     packed = scene_meta_for_persist(meta, poster=image)
@@ -2743,6 +2962,32 @@ async def render_one_scene(
         "clip_path": str(clip),
         "meta": meta,
     }
+
+
+def resolve_render_mode(mode: str | None) -> str:
+    """Map 'auto'/empty to the best available engine; pass explicit modes through.
+
+    Priority: agnes-video (if AGNES_API_KEY configured) > comfyui (if reachable) > local.
+    """
+    mode = (mode or "").strip().lower()
+    if mode in ("local", "agnes-video", "comfyui"):
+        return mode
+    # 'auto' or unknown/empty → pick best available on demand
+    try:
+        from cn_social_agent.video.agnes_client import AgnesVideoClient
+
+        if AgnesVideoClient.configured():
+            return "agnes-video"
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from cn_social_agent.video.comfy_client import available
+
+        if available():
+            return "comfyui"
+    except Exception:  # noqa: BLE001
+        pass
+    return "local"
 
 
 async def render_project(
@@ -2797,6 +3042,20 @@ async def render_project(
         scene["tts_duration_seconds"] = result["tts_duration_seconds"]
         clips.append(Path(result["clip_path"]))
         total += float(result["tts_duration_seconds"] or 0)
+
+        if THREEJS_TRANSITIONS_ENABLED and idx < n:
+            role = str(scene.get("role") or "value").lower()
+            transition_type = _ROLE_TRANSITION.get(role, "light_sweep")
+            on_screen = scene.get("on_screen") or ""
+            transition_clip = await render_threejs_transition(
+                root=root,
+                idx=idx,
+                transition_type=transition_type,
+                text=on_screen[:12] if on_screen else "",
+            )
+            if transition_clip:
+                clips.append(transition_clip)
+                total += 1.5
 
     final = root / "final.mp4"
     await concat_clips(clips, final)

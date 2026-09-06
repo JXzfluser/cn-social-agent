@@ -10,6 +10,8 @@ from aiohttp import web
 
 from cn_social_agent.agent.loop import AgentLoop, MockLLM
 from cn_social_agent.api.store import InsForgeStore, MemoryStore, Store
+from cn_social_agent.core.memory_backend import memory_client
+from cn_social_agent.experts.registry import ExpertRegistry
 from cn_social_agent.insforge import InsForge
 from cn_social_agent.llm import AgnesLLM, MiniMaxLLM, OllamaLLM
 from cn_social_agent.skills.loader import SkillLoader
@@ -123,6 +125,9 @@ class AppState:
         self.video_jobs: dict[str, Any] = {}
         # Fallback when DB has no agent_state column
         self.session_agent_state: dict[str, dict[str, Any]] = {}
+        # Nexus expert workbench: tenant client + expert catalogue.
+        self.nexus_client: Any = None
+        self.nexus_registry: Optional[ExpertRegistry] = None
 
     async def startup(self) -> None:
         self.llm_mode = await _resolve_llm_mode()
@@ -223,6 +228,22 @@ class AppState:
             print("[workbench] demo login: demo@local.test / demo123456")
         else:
             print("[workbench] auth → InsForge (register/login via backend)")
+
+        # Nexus expert workbench: same isolation client the request code uses.
+        # Memory auth → in-process RLS-emulating client (always runnable,
+        # still isolated per user). InsForge auth → the real PostgREST client.
+        if self.insforge is not None and self.auth_mode != "memory":
+            self.nexus_client = self.insforge._client
+            print("[workbench] nexus → InsForge (RLS-enforced)")
+        else:
+            self.nexus_client = memory_client(self.memory.user_id_for_token)
+            print("[workbench] nexus → memory backend (RLS-emulated)")
+        try:
+            self.nexus_registry = ExpertRegistry().scan()
+            print(f"[workbench] nexus experts: {len(self.nexus_registry)} loaded")
+        except Exception as exc:  # noqa: BLE001
+            self.nexus_registry = ExpertRegistry()
+            print(f"[workbench] nexus registry empty ({exc})")
 
         try:
             if self.llm_mode == "insforge" and self.insforge is not None:

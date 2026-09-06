@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from pathlib import Path
 from typing import Any, Union
@@ -32,6 +33,7 @@ from cn_social_agent.video.pipeline import (
     remux_project_final,
     render_one_scene,
     render_project,
+    resolve_render_mode,
     storyboard_outline,
     unpack_scene_meta,
     utc_now_iso,
@@ -241,6 +243,8 @@ async def list_or_create(request: web.Request) -> web.Response:
             "bg_theme": tmpl["bg_theme"],
             "motion": tmpl["motion"],
             "target_seconds": tmpl["target_seconds"],
+            "threejs_transitions": body.get("threejs_transitions", False),
+            "threejs_cards": body.get("threejs_cards", False),
         }
         script0 = apply_funnel_stamps(encode_script_bundle(meta0), "t_created")
     await store.update_project(
@@ -411,6 +415,8 @@ async def generate(request: web.Request) -> web.Response:
             motion=motion,
             render_mode=render_mode,
             content_angle=content_angle,
+            threejs_transitions=body.get("threejs_transitions", False),
+            threejs_cards=body.get("threejs_cards", False),
         )
     except Exception as exc:  # noqa: BLE001
         fail_msg = f"generate_failed: {_exc_text(exc)}"
@@ -770,6 +776,7 @@ async def render_scene(request: web.Request) -> web.Response:
 
     delivery_intent = (body.get("delivery_level") or "").strip().lower()
     override_mode = (body.get("render_mode") or "").strip()
+    engine = (body.get("engine") or "").strip() or None
     refresh = (body.get("refresh") or "all").strip().lower()
     if delivery_intent == "l1":
         override_mode = "agnes-video"
@@ -778,14 +785,13 @@ async def render_scene(request: web.Request) -> web.Response:
 
     _plain, meta = decode_script_bundle(project.get("script") or "")
     scene_meta = unpack_scene_meta(str(scene.get("image_path") or ""))
-    render_mode = (
+    # 'auto'/empty → pick best available engine on demand (agnes > comfy > local)
+    render_mode = resolve_render_mode(
         override_mode
         or scene_meta.get("scene_render_mode")
         or meta.get("render_mode")
-        or "local"
+        or ""
     )
-    if render_mode not in ("local", "agnes-video"):
-        render_mode = "local"
     delivery_level = "l1" if render_mode == "agnes-video" else "l0"
     idx = int(scene.get("scene_num") or 0)
     if idx <= 0:
@@ -846,6 +852,7 @@ async def render_scene(request: web.Request) -> web.Response:
                 motion=meta.get("motion") or "kenburns",
                 render_mode=render_mode,
                 refresh=refresh,
+                engine=engine,
             )
             await store.update_scene(
                 scene_id,
@@ -1077,9 +1084,9 @@ async def render(request: web.Request) -> web.Response:
         override_mode = "local"
 
     started_at = utc_now_iso()
-    preview_mode = override_mode or "local"
-    if preview_mode not in ("local", "agnes-video"):
-        preview_mode = "local"
+    # 'auto' (or empty) resolves to the best available engine on demand:
+    # agnes-video (if configured) > comfyui (if reachable) > local
+    preview_mode = resolve_render_mode(override_mode)
     preview_level = "l1" if preview_mode == "agnes-video" else "l0"
     start_msg = (
         "后台升级成片中…"
@@ -1128,9 +1135,8 @@ async def render(request: web.Request) -> web.Response:
             proj = await store.get_project(user_id, pid) or project
             voice = proj.get("agnes_video_task_id") or "zh-CN-XiaoxiaoNeural"
             _plain, meta = decode_script_bundle(proj.get("script") or "")
-            render_mode = override_mode or meta.get("render_mode") or "local"
-            if render_mode not in ("local", "agnes-video"):
-                render_mode = "local"
+            # 'auto'/empty → pick best available engine on demand (agnes > comfy > local)
+            render_mode = resolve_render_mode(override_mode or meta.get("render_mode") or "")
             delivery_level = "l1" if render_mode == "agnes-video" else "l0"
             label = "成片" if delivery_level == "l1" else "分镜草稿"
             running_msg = (
@@ -1163,6 +1169,15 @@ async def render(request: web.Request) -> web.Response:
                 "render_mode": render_mode,
                 "started_at": started_at,
             }
+
+            if meta.get("threejs_transitions"):
+                os.environ["THREEJS_TRANSITIONS"] = "1"
+            else:
+                os.environ.pop("THREEJS_TRANSITIONS", None)
+            if meta.get("threejs_cards"):
+                os.environ["THREEJS_CARDS"] = "1"
+            else:
+                os.environ.pop("THREEJS_CARDS", None)
 
             out, total = await render_project(
                 project_id=pid,
@@ -1462,12 +1477,84 @@ async def video_page(_request: web.Request) -> web.Response:
     raise web.HTTPFound("/?mode=video")
 
 
+@require_user
+async def publish_copy(request: web.Request) -> web.Response:
+    """LLM 生成发布包：3 个标题候选 + 话题标签 + 简介（对标剪映/度加的一站式发布）。"""
+    state = get_state(request)
+    store = _video_store(request)
+    if isinstance(store, web.Response):
+        return store
+    user_id = request["user"]["id"]
+    pid = request.match_info["id"]
+    project = await store.get_project(user_id, pid)
+    if not project:
+        return web.json_response({"error": "not found"}, status=404)
+    llm = getattr(state.agent, "llm", None) if state.agent else None
+    if llm is None:
+        return web.json_response({"error": "llm not configured"}, status=503)
+    topic = (project.get("title") or project.get("topic") or "").strip()
+    plain, meta = decode_script_bundle(project.get("script") or "")
+    # 分镜旁白优先：它可能已被人工改写（剧本/客户稿），比生成时的 full_script 更忠实
+    try:
+        rows = await store.list_scenes(pid)
+        scene_text = " ".join(
+            str((r.get("content") or "").strip()) for r in sorted(rows, key=lambda x: int(x.get("scene_num") or 0))
+        )
+        if len(scene_text.strip()) > len(plain.strip()):
+            plain = scene_text
+    except Exception:  # noqa: BLE001
+        pass
+    hook = str(meta.get("cover_hook") or "")[:120]
+    platform = str(meta.get("platform") or "抖音")
+    system = (
+        "你是资深短视频运营。先判断内容体裁（剧情短剧 / 知识讲解 / 观点口播），再据此写发布文案："
+        "剧情短剧要突出人物处境、悬念钩子与情绪共鸣；知识讲解突出能学到什么；观点口播突出反常识。"
+        "只输出 JSON：{\"titles\":[\"标题1\",\"标题2\",\"标题3\"],"
+        "\"hashtags\":[\"#标签\",...最多6个],\"description\":\"80字内的简介，带行动号召\"}。"
+        "标题口语化有钩子，标签贴合平台流量习惯，必须与正文内容一致。"
+    )
+    user = f"平台：{platform}\n主题：{topic}\n开场钩子：{hook}\n正文前1200字：{plain[:1200]}"
+    try:
+        data = await asyncio.wait_for(
+            llm.chat_completion(
+                [{"role": "system", "content": system}, {"role": "user", "content": user}]
+            ),
+            timeout=90,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return web.json_response({"error": f"llm_failed: {exc}"}, status=502)
+    content = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") if isinstance(data, dict) else data
+    text = str(content or "")
+    import json as _json
+    import re as _re
+
+    pack: dict[str, Any] = {}
+    try:
+        pack = _json.loads(text)
+    except _json.JSONDecodeError:
+        m = _re.search(r"\{[\s\S]*\}", text)
+        if m:
+            try:
+                pack = _json.loads(m.group(0))
+            except _json.JSONDecodeError:
+                pack = {}
+    titles = [str(t).strip() for t in (pack.get("titles") or []) if str(t).strip()][:3]
+    hashtags = [str(h).strip() for h in (pack.get("hashtags") or []) if str(h).strip()][:6]
+    description = str(pack.get("description") or "").strip()[:300]
+    if not titles:
+        return web.json_response({"error": "empty pack, try again"}, status=502)
+    return web.json_response(
+        {"ok": True, "titles": titles, "hashtags": hashtags, "description": description}
+    )
+
+
 def setup_video_routes(app: web.Application) -> None:
     from cn_social_agent.api.presentation_routes import setup_presentation_routes
 
     setup_presentation_routes(app)
     app.router.add_get("/video", video_page)
     app.router.add_post("/api/video/from-session", from_session)
+    app.router.add_post("/api/video/projects/{id}/publish-copy", publish_copy)
     app.router.add_route("GET", "/api/video/projects", list_or_create)
     app.router.add_route("POST", "/api/video/projects", list_or_create)
     app.router.add_get("/api/video/projects/{id}", get_project)

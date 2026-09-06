@@ -16,6 +16,10 @@ def now_label() -> str:
     return d.strftime("%Y.%m.%d %H:%M")
 
 
+# Dangling CJK connector at end of text — typical mid-phrase cut (…中的 / …与)
+DANGLING_TAIL_RE = re.compile(r"[的中与和及了在为到从把被]$")
+
+
 def clip(text: Any, n: int) -> str:
     s = re.sub(r"\s+", " ", str(text or "")).strip()
     if len(s) <= n:
@@ -58,6 +62,8 @@ def short_step(text: Any, n: int = 16) -> str:
     if not s:
         return ""
     head = re.split(r"[，。；;：:、]", s, maxsplit=1)[0].strip() or s
+    while len(head) > 4 and DANGLING_TAIL_RE.search(head):
+        head = head[:-1]
     ident = re.match(r"^([\u4e00-\u9fff]{1,8}[A-Za-z][A-Za-z0-9_+.#-]*)", head)
     if ident and len(ident.group(1)) >= 4:
         return ident.group(1)
@@ -90,7 +96,7 @@ def _flow_item_looks_cut(item: str, pts: list[str]) -> bool:
     for p in pts:
         if p and s != p and p.startswith(s) and len(p) >= len(s) + 3:
             return True
-    if len(s) >= 8 and re.search(r"[的中与和及了在为到从把被]$", s):
+    if len(s) >= 6 and DANGLING_TAIL_RE.search(s):
         return True
     return False
 

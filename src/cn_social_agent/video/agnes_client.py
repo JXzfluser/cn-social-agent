@@ -46,6 +46,30 @@ def is_queue_full(status_code: int, body: str) -> bool:
     )
 
 
+async def _retry_conn(awaitable_factory, *, tries: int = 4, base: float = 5.0) -> Any:
+    """Retry a coroutine on transient connection/timeout errors.
+
+    Agnes occasionally drops connections (ConnectTimeout/ReadTimeout); a single
+    blip must not kill a 5–7 min scene render, so retry with exponential backoff.
+    """
+    last: Optional[BaseException] = None
+    for i in range(max(1, tries)):
+        try:
+            return await awaitable_factory()
+        except (
+            httpx.ConnectTimeout,
+            httpx.ConnectError,
+            httpx.ReadTimeout,
+            httpx.RemoteProtocolError,
+        ) as e:
+            last = e
+            if i == tries - 1:
+                break
+            await asyncio.sleep(min(base * (2 ** i), 60.0))
+    assert last is not None
+    raise last
+
+
 def extract_completed_video_url(result: dict[str, Any]) -> str:
     """Resolve mp4 URL from Agnes completion payload (top-level or nested)."""
     meta = result.get("metadata") if isinstance(result.get("metadata"), dict) else {}
@@ -119,13 +143,15 @@ class AgnesVideoClient:
         backoff = _env_float("AGNES_QUEUE_BACKOFF_SECONDS", 15.0)
         backoff_max = _env_float("AGNES_QUEUE_BACKOFF_MAX_SECONDS", 90.0)
 
-        async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
+        async with httpx.AsyncClient(timeout=120.0, trust_env=False) as client:
             last_status, last_body = 0, ""
             for attempt in range(attempts):
-                resp = await client.post(
-                    f"{self.base_url}/videos",
-                    headers=self._headers(),
-                    json=payload,
+                resp = await _retry_conn(
+                    lambda: client.post(
+                        f"{self.base_url}/videos",
+                        headers=self._headers(),
+                        json=payload,
+                    )
                 )
                 if not resp.is_error:
                     return resp.json()
@@ -149,17 +175,35 @@ class AgnesVideoClient:
         raise RuntimeError(f"Agnes video create {last_status}: {last_body}")
 
     async def get_status(self, video_id: str) -> dict[str, Any]:
-        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
-            resp = await client.get(
-                f"{self.gateway}/agnesapi",
-                headers=self._headers(),
-                params={"video_id": video_id, "model_name": self.MODEL},
-            )
-            if resp.is_error:
-                # fallback legacy
-                resp2 = await client.get(
-                    f"{self.base_url}/videos/{video_id}",
-                    headers=self._headers(),
+        async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
+            status_retries = max(1, int(_env_float("AGNES_STATUS_RETRIES", 5)))
+            backoff = _env_float("AGNES_STATUS_BACKOFF_SECONDS", 6.0)
+            resp = None
+            for attempt in range(status_retries):
+                resp = await _retry_conn(
+                    lambda: client.get(
+                        f"{self.gateway}/agnesapi",
+                        headers=self._headers(),
+                        params={"video_id": video_id, "model_name": self.MODEL},
+                    ),
+                    tries=2,
+                )
+                if not resp.is_error:
+                    return resp.json()
+                # 429 = rate limited → back off and retry (do NOT fall to legacy,
+                # which returns task_not_exist for gateway-created tasks)
+                if resp.status_code == 429:
+                    await asyncio.sleep(min(backoff * (2 ** attempt), 60.0))
+                    continue
+                break  # non-429 error → try legacy fallback once
+            # legacy fallback (only reached on a non-429 gateway error)
+            if resp is not None and resp.is_error:
+                resp2 = await _retry_conn(
+                    lambda: client.get(
+                        f"{self.base_url}/videos/{video_id}",
+                        headers=self._headers(),
+                    ),
+                    tries=2,
                 )
                 if resp2.is_error:
                     raise RuntimeError(
@@ -173,7 +217,7 @@ class AgnesVideoClient:
         self,
         video_id: str,
         *,
-        poll_seconds: float = 4.0,
+        poll_seconds: float = 8.0,
         timeout_seconds: float = 360.0,
     ) -> dict[str, Any]:
         elapsed = 0.0
@@ -191,8 +235,8 @@ class AgnesVideoClient:
 
     async def download(self, url: str, dest: Path) -> Path:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        async with httpx.AsyncClient(timeout=120.0, trust_env=False, follow_redirects=True) as client:
-            resp = await client.get(url)
+        async with httpx.AsyncClient(timeout=180.0, trust_env=False, follow_redirects=True) as client:
+            resp = await _retry_conn(lambda: client.get(url), tries=4)
             if resp.is_error:
                 raise RuntimeError(f"download failed {resp.status_code}")
             dest.write_bytes(resp.content)

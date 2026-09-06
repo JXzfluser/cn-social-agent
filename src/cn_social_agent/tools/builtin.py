@@ -28,6 +28,36 @@ async def tool_now() -> dict[str, str]:
     }
 
 
+async def tool_library_list() -> dict[str, Any]:
+    from .context import tool_user_id
+    from .reference_library import reference_library
+
+    items = reference_library.list(tool_user_id())
+    return {"count": len(items), "items": items}
+
+
+async def tool_library_read(id: str = "", query: str = "") -> dict[str, Any]:
+    from .context import tool_user_id
+    from .reference_library import reference_library
+
+    user_id = tool_user_id()
+    item = reference_library.get(user_id, id) if id else reference_library.search(user_id, query)
+    if item is None:
+        listing = reference_library.list(user_id)
+        return {
+            "found": False,
+            "hint": "未找到匹配资料。可用 library_list 查看全部文件名后重试。",
+            "available": [i["name"] for i in listing],
+        }
+    return {
+        "found": True,
+        "id": item["id"],
+        "name": item["name"],
+        "kind": item["kind"],
+        "content": item["content"],
+    }
+
+
 async def tool_http_get(url: str, max_chars: int = 4000) -> dict[str, str]:
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
         resp = await client.get(url)
@@ -170,7 +200,7 @@ async def tool_fetch_url_text(url: str, max_chars: int = 8000) -> dict[str, Any]
     text = text[:max_chars]
     if not title:
         title = urlparse(final_url).path.rsplit("/", 1)[-1] or final_url
-    return {
+    result = {
         "ok": True,
         "url": final_url,
         "title": title[:200],
@@ -179,6 +209,48 @@ async def tool_fetch_url_text(url: str, max_chars: int = 8000) -> dict[str, Any]
         "status_code": str(resp.status_code),
         "truncated": "true" if len(text) >= max_chars else "false",
     }
+    try:
+        from cn_social_agent.tools.kb_enrich import enrich_kb_from_url
+        note_path = enrich_kb_from_url(final_url, title, text)
+        if note_path:
+            result["kb_note"] = str(note_path)
+    except Exception:  # noqa: BLE001
+        pass
+    return result
+
+
+async def tool_query_knowledge_base(question: str, top_k: int = 5) -> dict[str, Any]:
+    """Query the agent-learning RAG knowledge base for related notes and web-fetched content."""
+    question = (question or "").strip()
+    if not question:
+        return {"ok": False, "error": "question required", "results": []}
+    try:
+        import sys
+        al_dir = str(
+            __import__("pathlib").Path(__file__).resolve().parents[3] / "agent-learning"
+        )
+        if al_dir not in sys.path:
+            sys.path.insert(0, al_dir)
+        from knowledge_base.kb import KnowledgeBase
+
+        kb = KnowledgeBase()
+        kb.build()
+        results = kb.query(question, top_k=max(1, min(top_k, 10)))
+        return {
+            "ok": True,
+            "question": question,
+            "results": [
+                {
+                    "score": round(float(s), 4),
+                    "source": c.source,
+                    "topic": c.topic,
+                    "text": c.text[:600],
+                }
+                for c, s in results
+            ],
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)[:300], "results": []}
 
 
 async def tool_handoff_hotspot(
@@ -720,6 +792,31 @@ def register_builtin_tools(registry: ToolRegistry) -> None:
                 "required": ["url"],
             },
             handler=tool_fetch_url_text,
+        )
+    )
+    registry.register(
+        Tool(
+            name="query_knowledge_base",
+            description=(
+                "Query the agent-learning RAG knowledge base for related notes and web-fetched content. "
+                "Use when the user asks about a topic that might be covered in the learning notes or "
+                "previously fetched articles. Returns scored text chunks with source info."
+            ),
+            parameters={
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "Search query in natural language",
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Number of results to return (default 5)",
+                        "default": 5,
+                    },
+                },
+                "required": ["question"],
+            },
+            handler=tool_query_knowledge_base,
         )
     )
     registry.register(
@@ -1355,5 +1452,34 @@ def register_builtin_tools(registry: ToolRegistry) -> None:
                 "required": [],
             },
             handler=tool_write_todos,
+        )
+    )
+    registry.register(
+        Tool(
+            name="library_list",
+            description=(
+                "List the user's reference library (uploaded reference materials: "
+                "notes, docs, csv, code). Call this BEFORE asking the user to paste "
+                "content — if a relevant file exists, read it with library_read."
+            ),
+            parameters={"properties": {}, "required": []},
+            handler=tool_library_list,
+        )
+    )
+    registry.register(
+        Tool(
+            name="library_read",
+            description=(
+                "Read a reference library file by id, or fuzzy-match by name/content "
+                "keyword. Returns the full text content."
+            ),
+            parameters={
+                "properties": {
+                    "id": {"type": "string", "description": "File id from library_list", "default": ""},
+                    "query": {"type": "string", "description": "Name/content keyword", "default": ""},
+                },
+                "required": [],
+            },
+            handler=tool_library_read,
         )
     )

@@ -15,6 +15,7 @@ skills_optional:
   - web-video-presentation
   - ffmpeg-motion-cards
   - demo-echo
+  - threejs-transitions
 
 # Built-in template ids (pipeline.VIDEO_TEMPLATES) + optional overrides
 templates:

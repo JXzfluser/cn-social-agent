@@ -76,6 +76,11 @@ def normalize_connector_prefs(raw: dict[str, Any] | None) -> dict[str, Any]:
             out_en[cid] = bool(enabled[cid])
         else:
             out_en[cid] = True
+    # User-defined connectors (custom_*) persist their toggle too.
+    for cid, val in enabled.items():
+        key = str(cid)
+        if key not in out_en and key.startswith("custom_"):
+            out_en[key] = bool(val)
 
     hs = src.get("hotspot_sources_enabled")
     if not isinstance(hs, dict):
@@ -224,7 +229,8 @@ def apply_connector_patch(
     en = dict(norm["connectors_enabled"])
     hs = dict(norm["hotspot_sources_enabled"])
     cid = (connector_id or "").strip()
-    if cid and cid in en and enabled is not None:
+    if cid and enabled is not None:
+        # Known ids update in place; custom_* ids are admitted here as well.
         en[cid] = bool(enabled)
     sid = (hotspot_source_id or "").strip()
     if sid and sid in hs and hotspot_enabled is not None:

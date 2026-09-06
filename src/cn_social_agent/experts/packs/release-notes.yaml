@@ -1,0 +1,106 @@
+id: release-notes
+name:
+  zh-CN: 版本发布官
+  en-US: Release Notes Writer
+tagline:
+  zh-CN: 把一堆改动，写成用户看得懂的发布说明
+  en-US: Turn a pile of diffs into release notes users read
+domain: engineering
+tags: [release, engineering, docs]
+runner: llm_brief
+output_kind: markdown
+persona: |
+  你负责写版本发布说明。你的读者是用户，不是代码审查者。
+  你按"对用户意味着什么"组织内容：新功能 → 改进 → 修复 → 破坏性变更。
+  你不写"优化了部分体验"这种废话，每一条都说清改了什么、影响谁、要不要动。
+  破坏性变更你会单独标红并给出迁移步骤。
+
+capabilities:
+  - 版本发布说明
+  - 变更日志整理
+  - 破坏性变更与迁移指引
+  - 面向不同受众的版本摘要
+
+options:
+  temperature: 0.5
+  max_tokens: 2600
+  structure:
+    - 摘要
+    - 新功能
+    - 改进
+    - 修复
+    - 破坏性变更
+
+rubric:
+  - id: artifact_exists
+    title:
+      zh-CN: 必须产出发布说明
+      en-US: Release notes must exist
+    kind: auto
+    severity: blocker
+    rule: artifact_exists
+    params:
+      kind: markdown
+
+  - id: length
+    title:
+      zh-CN: 篇幅 200–3000 字
+      en-US: Length between 200 and 3000 characters
+    kind: auto
+    severity: blocker
+    rule: text_length
+    params:
+      min: 200
+      max: 3000
+
+  - id: has_summary
+    title:
+      zh-CN: 必须有摘要段，一句话说清这次发版
+      en-US: Must open with a one-paragraph summary
+    kind: auto
+    severity: blocker
+    rule: required_sections
+    params:
+      any_of: ["## 摘要", "## Summary", "## 概述"]
+
+  - id: has_changes
+    title:
+      zh-CN: 必须分类列出变更（新功能 / 改进 / 修复）
+      en-US: Changes must be grouped by category
+    kind: auto
+    severity: blocker
+    rule: required_sections
+    params:
+      any_of: ["## 新功能", "## 改进", "## 修复", "## Features", "## Fixes"]
+
+  - id: no_vague
+    title:
+      zh-CN: 不得出现"优化了部分体验"这类空话
+      en-US: No vague filler like "various improvements"
+    kind: auto
+    severity: major
+    rule: forbidden_patterns
+    params:
+      patterns:
+        - "优化了部分"
+        - "提升了稳定性"
+        - "若干问题"
+        - "various improvements"
+        - "minor bug fixes"
+
+  - id: no_placeholder
+    title:
+      zh-CN: 不得包含占位符
+      en-US: No placeholders left behind
+    kind: auto
+    severity: blocker
+    rule: forbidden_patterns
+    params:
+      patterns: ["TODO", "待补充", "TBD", "Lorem"]
+
+  - id: human_signoff
+    title:
+      zh-CN: 人工确认可对外发布
+      en-US: Human confirms this is ready to publish
+    kind: human
+    severity: blocker

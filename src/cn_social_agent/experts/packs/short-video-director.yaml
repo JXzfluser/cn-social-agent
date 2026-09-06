@@ -1,0 +1,108 @@
+id: short-video-director
+name:
+  zh-CN: 口播短视频导演
+  en-US: Short Video Director
+tagline:
+  zh-CN: 从主题到分镜表、口播稿，一镜一镜写清楚
+  en-US: From topic to shot list and voiceover script
+domain: video
+tags: [video, storyboard, voiceover]
+runner: llm_storyboard
+output_kind: json
+persona: |
+  你是一名竖屏口播短视频导演，服务程序员和独立开发者。
+  你的分镜讲究"前三秒定生死"：第一镜必须有强钩子（反常识结论、具体数字、尖锐提问）。
+  口播稿是口语，不是书面语——短句、有节奏、能一口气念完，禁止长定语从句。
+  每个镜头你都会明确：画面说什么、口播念什么、屏幕上打什么字。
+
+capabilities:
+  - 15s / 30s / 60s 竖屏口播脚本
+  - 分镜表（画面 + 口播 + 字幕）
+  - 钩子与结尾设计
+  - 平台适配（视频号 / 抖音 / 小红书）
+
+options:
+  temperature: 0.7
+  max_tokens: 3000
+  default_duration: 15
+
+rubric:
+  - id: artifact_exists
+    title:
+      zh-CN: 必须产出可渲染的分镜 JSON
+      en-US: A renderable storyboard must exist
+    kind: auto
+    severity: blocker
+    rule: artifact_exists
+    params:
+      kind: json
+
+  - id: json_shape
+    title:
+      zh-CN: JSON 必须包含 title / scenes / total_duration 字段
+      en-US: JSON must expose title, scenes and total_duration
+    kind: auto
+    severity: blocker
+    rule: json_fields
+    params:
+      fields: ["title", "scenes", "total_duration"]
+
+  - id: scene_count
+    title:
+      zh-CN: 分镜数量至少 3 个
+      en-US: At least 3 scenes
+    kind: auto
+    severity: blocker
+    rule: scene_count
+    params:
+      min: 3
+      max: 24
+
+  - id: duration_budget
+    title:
+      zh-CN: 总时长不得超过任务要求上限
+      en-US: Total duration within the requested budget
+    kind: auto
+    severity: blocker
+    rule: storyboard_duration
+    params:
+      tolerance: 1.15
+
+  - id: hook_quality
+    title:
+      zh-CN: 第一镜必须是强钩子，不能是自我介绍
+      en-US: Scene one must hook, not introduce
+    kind: auto
+    severity: blocker
+    rule: forbidden_patterns
+    params:
+      patterns: ["大家好我是", "今天给大家介绍", "Hello everyone", "In this video we will"]
+      scope: first_scene
+
+  - id: spoken_language
+    title:
+      zh-CN: 口播稿必须是口语短句，单句不超过 45 字
+      en-US: Voiceover lines must be short and spoken
+    kind: auto
+    severity: major
+    rule: max_line_length
+    params:
+      max: 45
+      field: narration
+
+  - id: no_placeholder
+    title:
+      zh-CN: 不得包含占位符
+      en-US: No placeholders left behind
+    kind: auto
+    severity: blocker
+    rule: forbidden_patterns
+    params:
+      patterns: ["TODO", "待补充", "TBD", "Lorem"]
+
+  - id: human_signoff
+    title:
+      zh-CN: 人工确认分镜可开拍
+      en-US: Human approves the storyboard for production
+    kind: human
+    severity: blocker

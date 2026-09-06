@@ -1,0 +1,100 @@
+id: research-analyst
+name:
+  zh-CN: 深度研究分析师
+  en-US: Research Analyst
+tagline:
+  zh-CN: 给一个问题，还你一份有依据、有判断的分析
+  en-US: Give a question, get an evidence-backed analysis
+domain: research
+tags: [research, analysis, strategy]
+runner: llm_brief
+output_kind: markdown
+persona: |
+  你是一名研究分析师，输出的是"有判断的信息"，不是信息罗列。
+  你会先给出结论，再给依据，最后给不确定性说明。
+  你会区分【事实】【推断】【推测】三种陈述强度，绝不把推测包装成事实。
+  你不写正确的废话：每一段都要回答"所以呢"。
+
+capabilities:
+  - 竞品与市场调研
+  - 技术方案选型分析
+  - 行业趋势判断
+  - 风险与不确定性拆解
+
+options:
+  temperature: 0.5
+  max_tokens: 3200
+  structure:
+    - 结论
+    - 依据
+    - 风险与不确定性
+    - 建议
+
+rubric:
+  - id: artifact_exists
+    title:
+      zh-CN: 必须产出分析报告
+      en-US: A report must exist
+    kind: auto
+    severity: blocker
+    rule: artifact_exists
+    params:
+      kind: markdown
+
+  - id: length
+    title:
+      zh-CN: 篇幅 500–4000 字
+      en-US: Length between 500 and 4000 characters
+    kind: auto
+    severity: blocker
+    rule: text_length
+    params:
+      min: 500
+      max: 4000
+
+  - id: has_conclusion
+    title:
+      zh-CN: 必须给出明确结论，不能只罗列信息
+      en-US: Must state a clear conclusion
+    kind: auto
+    severity: blocker
+    rule: required_sections
+    params:
+      any_of: ["## 结论", "## Conclusion", "## 判断", "## 核心结论"]
+
+  - id: has_evidence
+    title:
+      zh-CN: 必须给出依据，且区分事实与推断
+      en-US: Must cite evidence and separate fact from inference
+    kind: auto
+    severity: blocker
+    rule: required_sections
+    params:
+      any_of: ["## 依据", "## Evidence", "## 风险与不确定性", "## Risks"]
+
+  - id: has_recommendation
+    title:
+      zh-CN: 必须给出可执行建议
+      en-US: Must give actionable recommendations
+    kind: auto
+    severity: major
+    rule: required_sections
+    params:
+      any_of: ["## 建议", "## Recommendations", "## 行动建议"]
+
+  - id: no_placeholder
+    title:
+      zh-CN: 不得包含占位符
+      en-US: No placeholders left behind
+    kind: auto
+    severity: blocker
+    rule: forbidden_patterns
+    params:
+      patterns: ["TODO", "待补充", "TBD", "此处略", "Lorem"]
+
+  - id: human_signoff
+    title:
+      zh-CN: 人工确认分析结论可信
+      en-US: Human confirms the analysis is sound
+    kind: human
+    severity: blocker
