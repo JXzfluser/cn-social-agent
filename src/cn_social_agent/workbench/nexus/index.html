@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nexus · AI 工作台</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="light">
+
+<!-- lucide 图标 sprite（内联，不联网） -->
+<svg id="wb-sprite" aria-hidden="true">
+  <defs>
+    <symbol id="ic-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="ic-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9zM5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8zM19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z"/></symbol>
+    <symbol id="ic-plug" viewBox="0 0 24 24"><path d="M12 22v-5M9 8V2M15 8V2M6 8h12v2a6 6 0 0 1-12 0z"/></symbol>
+    <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/></symbol>
+    <symbol id="ic-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>
+    <symbol id="ic-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+    <symbol id="ic-paperclip" viewBox="0 0 24 24"><path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7L10 17.3a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></symbol>
+    <symbol id="ic-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="ic-panel" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></symbol>
+    <symbol id="ic-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="ic-x" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></symbol>
+    <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="ic-external" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14L21 3M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></symbol>
+    <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></symbol>
+    <symbol id="ic-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
+    <symbol id="ic-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></symbol>
+    <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
+    <symbol id="ic-flag" viewBox="0 0 24 24"><path d="M4 22V4M4 4h13l-2 4 2 4H4"/></symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></symbol>
+    <symbol id="ic-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></symbol>
+    <symbol id="ic-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============================ 登录 ============================ -->
+<section id="login" class="login-screen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div>
+        <h1>Nexus 工作台</h1>
+        <p class="muted">一句话下任务，AI 自己干完并交付文件</p>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" data-auth="login" id="auth-tab-login">登录</button>
+      <button type="button" class="auth-tab" data-auth="register" id="auth-tab-register">注册</button>
+    </div>
+    <form id="login-form" class="form">
+      <label id="lbl-email">邮箱</label>
+      <input id="login-email" class="ui-input" type="email" value="demo@local.test" autocomplete="username" />
+      <label id="lbl-name" hidden>昵称</label>
+      <input id="login-name" class="ui-input" type="text" hidden placeholder="可选" />
+      <label id="lbl-password">密码</label>
+      <input id="login-password" class="ui-input" type="password" value="demo123456" autocomplete="current-password" />
+      <button type="submit" class="ui-btn ui-btn--default ui-btn--block" id="btn-login">登录</button>
+      <div id="login-error" class="error" hidden></div>
+    </form>
+    <p class="hint">演示账号：demo@local.test / demo123456</p>
+  </div>
+</section>
+
+<!-- ============================ 应用壳 ============================ -->
+<div id="main" class="app hidden">
+  <!-- 左侧导航 -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand mark"><span>N</span></div>
+      <div>
+        <div class="name">Nexus</div>
+        <div class="tag">AI 办公工作台</div>
+      </div>
+    </div>
+    <button id="new-task"><svg class="i"><use href="#ic-plus"/></svg> 新建对话</button>
+
+    <input id="conv-search" class="ui-input" style="margin:0 4px 10px;height:32px;font-size:13px" type="text" placeholder="搜索对话" />
+
+    <div id="history"></div>
+
+    <nav class="side-nav">
+      <div class="item active" data-nav="chat" id="nav-chat">
+        <svg class="i"><use href="#ic-message"/></svg>
+        <div class="tx"><span>助手</span><span class="sub">对话与任务</span></div>
+      </div>
+      <div class="item" data-nav="plaza" id="nav-plaza">
+        <svg class="i"><use href="#ic-sparkles"/></svg>
+        <div class="tx"><span>专家 · 技能 · 连接器</span><span class="sub">能力广场</span></div>
+      </div>
+      <div class="item" data-nav="auto" id="nav-auto">
+        <svg class="i"><use href="#ic-clock"/></svg>
+        <div class="tx"><span>自动化</span><span class="sub">定时任务</span></div>
+      </div>
+      <div class="item more-toggle" id="nav-more">
+        <svg class="i"><use href="#ic-book"/></svg>
+        <div class="tx"><span>更多</span><span class="sub">资料库 · 评测</span></div>
+        <svg class="i caret"><use href="#ic-chevron"/></svg>
+      </div>
+      <div class="more-box" id="more-box">
+        <div class="item" data-nav="library" id="nav-library">
+          <svg class="i"><use href="#ic-book"/></svg><span>资料库</span>
+        </div>
+        <div class="item" data-nav="tasks" id="nav-tasks">
+          <svg class="i"><use href="#ic-flag"/></svg><span>任务历史</span>
+        </div>
+        <div class="item" data-nav="hotspots" id="nav-hotspots">
+          <svg class="i"><use href="#ic-sparkles"/></svg><span>热点看板</span>
+        </div>
+        <div class="item" data-nav="videos" id="nav-videos">
+          <svg class="i"><use href="#ic-play"/></svg><span>制片记录</span>
+        </div>
+      </div>
+      <div class="item" data-nav="settings" id="nav-settings">
+        <svg class="i"><use href="#ic-settings"/></svg><span>设置</span>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="title" id="topbar-title">新对话 <span class="model-badge" id="topbar-model"></span></div>
+      <div class="right">
+        <button id="btn-msg-search" class="icon-btn" title="在对话中搜索 (Ctrl+F)"><svg class="i"><use href="#ic-search"/></svg></button>
+        <button id="btn-theme" class="icon-btn" title="切换主题"><svg class="i"><use href="#ic-moon"/></svg></button>
+        <button id="toggle-files"><svg class="i"><use href="#ic-panel"/></svg> <span id="toggle-files-t">成果</span></button>
+      </div>
+    </header>
+
+    <div class="view-root">
+      <!-- 对话视图 -->
+      <div id="chat-view" style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <div class="chat-search-bar" id="chat-search-bar">
+          <svg class="i" style="color:var(--wb-text-3)"><use href="#ic-search"/></svg>
+          <input id="msg-search-input" class="ui-input" style="height:32px;font-size:13px" placeholder="在对话中搜索" />
+          <span class="count" id="msg-search-count"></span>
+          <button class="icon-btn" id="msg-search-close"><svg class="i"><use href="#ic-x"/></svg></button>
+        </div>
+        <div id="chat-scroll">
+          <div class="chat-col" id="chat-col">
+            <div class="empty" id="chat-empty">
+              <h1>有什么可以帮你？</h1>
+              <p>一句话下任务，AI 自己规划、拆解、动手，交给你能打开验收的成果文件。</p>
+              <div class="scene-tip">输入框左侧可切 <b>问答 / 规划 / 目标 / 执行</b> 四种模式</div>
+            </div>
+          </div>
+        </div>
+        <div id="to-bottom" title="回到底部">↓</div>
+
+        <!-- 输入区 -->
+        <div class="input-wrap">
+          <div class="input-inner">
+            <div class="input-card" id="input-card">
+              <textarea id="input" rows="1" placeholder="给 Nexus 下个任务…"></textarea>
+              <div class="attach-chips" id="attach-chips" hidden></div>
+              <div class="card-toolbar">
+                <button class="icon-btn" id="btn-attach" title="附件"><svg class="i"><use href="#ic-paperclip"/></svg></button>
+                <input id="file-input" type="file" hidden accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.py,.js,.ts,.java,.go,.rs,.c,.cpp,.h,.sh,.yaml,.yml,.xml,.html,.css,.sql" />
+                <!-- 模式 picker -->
+                <div class="picker">
+                  <button class="picker-btn" id="mode-btn"><svg class="i"><use href="#ic-flag"/></svg> <span id="mode-label">执行</span></button>
+                  <div class="picker-menu" id="mode-menu">
+                    <div class="mh">工作模式</div>
+                    <div class="mi" data-mode="ask"><svg class="i"><use href="#ic-message"/></svg> 问答 <span class="sub">只回答</span></div>
+                    <div class="mi" data-mode="plan"><svg class="i"><use href="#ic-edit"/></svg> 规划 <span class="sub">只出计划</span></div>
+                    <div class="mi" data-mode="goal"><svg class="i"><use href="#ic-flag"/></svg> 目标 <span class="sub">自动验收</span></div>
+                    <div class="mi on" data-mode="craft"><svg class="i"><use href="#ic-play"/></svg> 执行 <span class="sub">完整执行</span></div>
+                  </div>
+                </div>
+                <!-- 模型 picker -->
+                <div class="picker">
+                  <button class="picker-btn" id="model-btn"><svg class="i"><use href="#ic-cpu"/></svg> <span id="model-label">默认模型</span></button>
+                  <div class="picker-menu" id="model-menu"></div>
+                </div>
+                <!-- 权限 picker -->
+                <div class="picker">
+                  <button class="picker-btn" id="perm-btn"><svg class="i"><use href="#ic-shield"/></svg> <span id="perm-label">自动</span></button>
+                  <div class="picker-menu" id="perm-menu">
+                    <div class="mh">权限档位</div>
+                    <div class="mi" data-perm="ask"><svg class="i"><use href="#ic-message"/></svg> 每步都问</div>
+                    <div class="mi on" data-perm="auto"><svg class="i"><use href="#ic-play"/></svg> 自动</div>
+                    <div class="mi" data-perm="full"><svg class="i"><use href="#ic-shield"/></svg> 全自动</div>
+                  </div>
+                </div>
+                <div class="grow"></div>
+                <button id="send" title="发送"><svg class="i"><use href="#ic-send"/></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 广场视图 -->
+      <div id="plaza-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>能力广场</h2>
+          <div class="page-sub">召唤专家、装技能、接连接器——一个入口管理全部能力。</div>
+          <div class="scene-tabs" id="plaza-tabs">
+            <button class="active" data-tab="experts"><svg class="i"><use href="#ic-sparkles"/></svg> 专家</button>
+            <button data-tab="skills"><svg class="i"><use href="#ic-book"/></svg> 技能</button>
+            <button data-tab="connectors"><svg class="i"><use href="#ic-plug"/></svg> 连接器</button>
+            <button data-tab="templates"><svg class="i"><use href="#ic-edit"/></svg> 模板</button>
+          </div>
+          <div class="card-grid" id="plaza-grid"></div>
+        </div>
+      </div>
+
+      <!-- 自动化视图 -->
+      <div id="auto-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>自动化</h2>
+          <div class="page-sub">定时跑的任务，结果会推回对话。错过了会自动补跑。</div>
+          <div id="auto-list"></div>
+          <h2 style="margin-top:28px;font-size:17px">运行记录</h2>
+          <div id="auto-runs"></div>
+        </div>
+      </div>
+
+      <!-- 任务历史视图 -->
+      <div id="tasks-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>任务历史</h2>
+          <div class="page-sub">所有派单任务与目标模式运行记录，点开查看执行轨迹与产物。</div>
+          <div id="task-history-list"></div>
+        </div>
+      </div>
+
+      <!-- 热点看板视图 -->
+      <div id="hotspots-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>热点看板</h2>
+          <div class="page-sub">聚合 GitHub/HN/V2EX/少数派等来源的选题素材，一条热点一键转口播视频。</div>
+          <div id="hotspot-list"><div class="muted">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- 制片记录视图 -->
+      <div id="videos-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>制片记录</h2>
+          <div class="page-sub">所有口播视频项目：对话里 /视频 创建的都在这里，可播放、下载、重渲染。</div>
+          <div id="video-list"><div class="muted">加载中…</div></div>
+        </div>
+      </div>
+
+      <!-- 资料库视图 -->
+      <div id="library-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>资料库</h2>
+          <div class="page-sub">把参考资料丢进资料库，任务时 AI 用 library_list / library_read 自动取用，不用每次贴进对话。</div>
+          <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center">
+            <button class="ui-btn ui-btn--default ui-btn--sm" id="lib-upload-btn"><svg class="i"><use href="#ic-plus"/></svg> 上传资料</button>
+            <input id="lib-file-input" type="file" hidden multiple accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.py,.js,.ts,.java,.go,.rs,.c,.cpp,.h,.sh,.yaml,.yml,.xml,.html,.css,.sql" />
+            <span class="hint" style="font-size:12px;color:var(--wb-text-3)">文本类文件 · 单个 ≤200KB · 最多 50 个</span>
+          </div>
+          <div id="library-list"></div>
+        </div>
+      </div>
+
+      <!-- 设置视图 -->
+      <div id="settings-view" class="page-scroll hidden">
+        <div class="page">
+          <h2>设置</h2>
+          <div class="page-sub">模型、智能体、账号与外观，全部热生效。</div>
+
+          <div class="set-section">
+            <h3><svg class="i"><use href="#ic-cpu"/></svg> 模型</h3>
+            <div class="set-row">
+              <label>渠道</label>
+              <div class="ctr"><select id="model-provider" class="ui-select"></select></div>
+            </div>
+            <div class="set-row">
+              <label>模型</label>
+              <div class="ctr"><select id="model-name" class="ui-select" style="flex:1"></select><span class="hint" id="model-health"></span></div>
+            </div>
+            <div class="set-row">
+              <label></label>
+              <div class="ctr"><button class="ui-btn ui-btn--default ui-btn--sm" id="btn-save-model">保存</button><span class="hint">保存后全局默认模型立即生效</span></div>
+            </div>
+          </div>
+
+          <div class="set-section">
+            <h3><svg class="i"><use href="#ic-sparkles"/></svg> 智能体</h3>
+            <div class="set-row">
+              <label>默认专家</label>
+              <div class="ctr"><select id="set-expert" class="ui-select" style="flex:1"></select><span class="hint">Goal 模式派单与快捷任务优先使用</span></div>
+            </div>
+            <div class="set-row">
+              <label>自主权限</label>
+              <div class="ctr">
+                <select id="set-perm" class="ui-select">
+                  <option value="ask">每步询问（最稳）</option>
+                  <option value="auto">自动执行（推荐）</option>
+                  <option value="full">完全自主（最快）</option>
+                </select>
+              </div>
+            </div>
+            <div class="set-row">
+              <label></label>
+              <div class="ctr"><button class="ui-btn ui-btn--default ui-btn--sm" id="btn-save-agent">保存</button><span class="hint">下一条消息 / 任务立即生效</span></div>
+            </div>
+          </div>
+
+          <div class="set-section">
+            <h3><svg class="i"><use href="#ic-settings"/></svg> 账号与外观</h3>
+            <div class="set-row">
+              <label>昵称</label>
+              <div class="ctr"><input id="set-name" class="ui-input" /></div>
+            </div>
+            <div class="set-row">
+              <label>语言</label>
+              <div class="ctr">
+                <select id="set-locale" class="ui-select">
+                  <option value="zh-CN">中文</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+            </div>
+            <div class="set-row">
+              <label>主题</label>
+              <div class="ctr">
+                <select id="set-theme" class="ui-select">
+                  <option value="light">浅色</option>
+                  <option value="dark">深色</option>
+                </select>
+              </div>
+            </div>
+            <div class="set-row">
+              <label></label>
+              <div class="ctr"><button class="ui-btn ui-btn--default ui-btn--sm" id="btn-save-profile">保存</button></div>
+            </div>
+          </div>
+
+          <div class="set-section">
+            <h3><svg class="i"><use href="#ic-link"/></svg> IM 与远程指挥（通用 Webhook）</h3>
+            <div class="set-row">
+              <label>通道</label>
+              <div class="ctr"><div class="switch" id="im-switch"></div><span class="hint" id="im-state-hint">加载中…</span></div>
+            </div>
+            <div class="set-row">
+              <label>入站地址</label>
+              <div class="ctr"><input id="im-url" class="ui-input" readonly /><button class="ui-btn ui-btn--outline ui-btn--sm" id="im-copy">复制</button></div>
+            </div>
+            <div class="set-row">
+              <label></label>
+              <div class="ctr"><button class="ui-btn ui-btn--outline ui-btn--sm" id="im-reset">重置密钥</button><span class="hint">外部系统 POST {"secret","message"} 即可远程指挥，回复同步返回并进「IM 远程指挥」会话</span></div>
+            </div>
+          </div>
+
+          <div class="set-section">
+            <h3><svg class="i"><use href="#ic-clock"/></svg> 用量账本（近 7 天）</h3>
+            <div id="usage-box" class="muted" style="font-size:13px;line-height:2">加载中…</div>
+          </div>
+
+          <div class="set-section">
+            <h3><svg class="i"><use href="#ic-shield"/></svg> 服务状态</h3>
+            <div id="health-box" class="muted" style="font-size:12.5px;line-height:1.9"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧成果预览面板 -->
+  <aside class="preview-panel" id="preview">
+    <div class="pv-head">
+      <span class="pv-name" id="pv-name">成果</span>
+      <button id="pv-close"><svg class="i"><use href="#ic-x"/></svg></button>
+    </div>
+    <div class="pv-deploy" id="pv-deploy" hidden></div>
+    <div class="pv-body" id="pv-body"></div>
+  </aside>
+</div>
+
+<!-- 派单弹窗 -->
+<div id="dispatch-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="dispatch-title">派单给专家</h3>
+    <div class="rubric-box" id="dispatch-rubric"></div>
+    <label style="font-size:13px;color:var(--wb-text-2)">任务标题</label>
+    <input id="dispatch-task-title" class="ui-input" style="margin:6px 0 12px" />
+    <label style="font-size:13px;color:var(--wb-text-2)">任务要求</label>
+    <textarea id="dispatch-brief" class="ui-textarea" rows="5" style="margin-top:6px"></textarea>
+    <div class="modal-actions">
+      <button class="ui-btn ui-btn--ghost" id="dispatch-cancel">取消</button>
+      <button class="ui-btn ui-btn--default" id="dispatch-submit">创建任务</button>
+    </div>
+  </div>
+</div>
+
+<!-- 断线横幅 + toast -->
+<div id="offline" class="hidden"><span id="offline-msg">服务连接已断开，正在重连…</span><button id="btn-reload">立即刷新</button></div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

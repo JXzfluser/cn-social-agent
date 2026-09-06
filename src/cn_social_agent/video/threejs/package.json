@@ -1,0 +1,17 @@
+{
+  "name": "threejs-transitions",
+  "version": "1.0.0",
+  "description": "3D video transitions using Three.js + Puppeteer",
+  "type": "module",
+  "scripts": {
+    "render": "node render.js",
+    "test": "node render.js --transition particle_converge --text 'Test' --output /tmp/test_transition"
+  },
+  "dependencies": {
+    "three": "^0.170.0",
+    "puppeteer-core": "^23.0.0"
+  },
+  "config": {
+    "puppeteer_skip_download": true
+  }
+}

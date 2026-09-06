@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any, Union
@@ -1472,6 +1473,85 @@ async def download(request: web.Request) -> web.StreamResponse:
     return web.json_response({"error": "output not ready", "hint": hint}, status=404)
 
 
+# 逐镜素材文件名白名单（防目录穿越）：scene_<n>[_agnes|_caption].mp4|png
+_SCENE_FILE_RE = re.compile(r"^scene_\d{1,3}(_agnes|_caption)?\.(mp4|png)$")
+
+
+@require_user
+async def list_scene_files(request: web.Request) -> web.StreamResponse:
+    """列出工程目录下已就绪的逐镜素材，让工作台只给就绪的镜位渲染播放器。"""
+    store = _video_store(request)
+    if isinstance(store, web.Response):
+        return store
+    user_id = request["user"]["id"]
+    pid = request.match_info["id"]
+    project = await store.get_project(user_id, pid)
+    if not project:
+        return web.json_response({"error": "not found"}, status=404)
+    op = project.get("output_path") or ""
+    base: Path | None = Path(op).parent if op else None
+    if base is None or not base.is_dir():
+        base = Path("data/videos") / pid
+    files: list[str] = []
+    if base.is_dir():
+        try:
+            for p in base.iterdir():
+                if p.is_file() and _SCENE_FILE_RE.match(p.name):
+                    files.append(p.name)
+        except OSError:  # noqa: BLE001
+            files = []
+    files.sort()
+    return web.json_response({"project_id": pid, "files": files})
+
+
+@require_user
+async def scene_file(request: web.Request) -> web.StreamResponse:
+    """逐镜素材直出（工作台内预览用）。
+
+    /nexus 里要逐镜播放 scene_N_agnes.mp4，但 <video> 标签无法带 Authorization，
+    且逐镜文件在 data/videos/<pid>/ 下、没有静态路由可达，只能走这里带 JWT 取。
+    """
+    store = _video_store(request)
+    if isinstance(store, web.Response):
+        return store
+    user_id = request["user"]["id"]
+    pid = request.match_info["id"]
+    name = request.match_info.get("name") or ""
+    if not _SCENE_FILE_RE.match(name):
+        return web.json_response({"error": "invalid scene file name"}, status=400)
+    project = await store.get_project(user_id, pid)
+    if not project:
+        return web.json_response({"error": "not found"}, status=404)
+    # 优先用 output_path 推导工程目录，其次回退到 data/videos/<pid>
+    op = project.get("output_path") or ""
+    base: Path | None = Path(op).parent if op else None
+    if base is None or not base.is_dir():
+        base = Path("data/videos") / pid
+    fp = base / name
+    # 目录穿越兜底（正则已限制，这里再确认一次落在 base 内）
+    try:
+        fp.resolve().relative_to(base.resolve())
+    except ValueError:
+        return web.json_response({"error": "invalid scene file path"}, status=400)
+    if not fp.is_file():
+        return web.json_response(
+            {"error": "scene file not ready", "hint": str(fp)}, status=404
+        )
+    suffix = fp.suffix.lower()
+    ctype = {
+        ".mp4": "video/mp4",
+        ".png": "image/png",
+    }.get(suffix, "application/octet-stream")
+    return web.FileResponse(
+        str(fp),
+        headers={
+            "Content-Type": ctype,
+            "Content-Disposition": f'inline; filename="{name}"',
+            "Accept-Ranges": "bytes",
+        },
+    )
+
+
 async def video_page(_request: web.Request) -> web.Response:
     # Unified workbench: keep /video as alias into main page video mode.
     raise web.HTTPFound("/?mode=video")
@@ -1566,6 +1646,9 @@ def setup_video_routes(app: web.Application) -> None:
     app.router.add_post(
         "/api/video/projects/{id}/scenes/{scene_id}/render", render_scene
     )
+    # 逐镜素材直出（/nexus 内逐镜预览，带 JWT）
+    app.router.add_get("/api/video/projects/{id}/scenes/{name}", scene_file)
+    app.router.add_get("/api/video/projects/{id}/scenes", list_scene_files)
     app.router.add_get("/api/video/projects/{id}/status", status)
     app.router.add_get("/api/video/projects/{id}/download", download)
     app.router.add_patch("/api/video/scenes/{id}", patch_scene)

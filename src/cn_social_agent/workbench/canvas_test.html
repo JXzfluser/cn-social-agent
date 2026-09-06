@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas 2D Renderer Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f1219; color: #fff; font-family: -apple-system, sans-serif; }
+    .toolbar { padding: 12px; background: #1a1f2e; display: flex; gap: 8px; flex-wrap: wrap; }
+    .toolbar button { padding: 8px 16px; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; background: rgba(255,255,255,0.05); color: #fff; cursor: pointer; font-size: 13px; }
+    .toolbar button:hover { background: rgba(255,255,255,0.1); }
+    .toolbar button.active { background: #3b82f6; border-color: #3b82f6; }
+    .canvas-container { width: 100%; height: calc(100vh - 60px); position: relative; }
+    .status { position: absolute; bottom: 12px; left: 12px; background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="addNodes(10)">Add 10 Nodes</button>
+    <button onclick="addNodes(100)">Add 100 Nodes</button>
+    <button onclick="addNodes(1000)">Add 1000 Nodes</button>
+    <button onclick="autoLayout('grid')">Grid Layout</button>
+    <button onclick="autoLayout('kind')">By Kind</button>
+    <button onclick="autoLayout('radial')">Radial</button>
+    <button onclick="toggleTheme()">Toggle Theme</button>
+    <button onclick="fitToContent()">Fit to Content</button>
+    <button onclick="clearCanvas()">Clear</button>
+    <span id="fps" style="margin-left:auto;color:#34d399;">FPS: 0</span>
+  </div>
+  <div id="canvasContainer" class="canvas-container"></div>
+  <div class="status" id="status">Nodes: 0 | Edges: 0</div>
+
+  <script type="module">
+    import { CanvasRenderer } from './canvas_renderer.js';
+
+    const container = document.getElementById('canvasContainer');
+    const renderer = new CanvasRenderer(container, { animateConnections: true });
+    renderer.startRenderLoop();
+
+    let frameCount = 0;
+    let lastTime = performance.now();
+
+    function updateFPS() {
+      frameCount++;
+      const now = performance.now();
+      if (now - lastTime >= 1000) {
+        document.getElementById('fps').textContent = `FPS: ${frameCount}`;
+        frameCount = 0;
+        lastTime = now;
+      }
+      requestAnimationFrame(updateFPS);
+    }
+    updateFPS();
+
+    function updateStatus() {
+      document.getElementById('status').textContent = 
+        `Nodes: ${renderer.nodes.length} | Edges: ${renderer.edges.length} | Selected: ${renderer.selected.size}`;
+    }
+
+    function addNodes(count) {
+      const kinds = ['note', 'evidence', 'hook', 'outline', 'question', 'link'];
+      const colors = ['', 'yellow', 'green', 'blue', 'pink', 'purple'];
+
+      for (let i = 0; i < count; i++) {
+        renderer.addNode({
+          x: Math.random() * 2000,
+          y: Math.random() * 1500,
+          kind: kinds[Math.floor(Math.random() * kinds.length)],
+          color: colors[Math.floor(Math.random() * colors.length)],
+          title: `Node ${renderer.nodes.length + 1}`,
+          text: 'Sample content here...',
+        });
+      }
+
+      if (renderer.nodes.length > 1 && Math.random() > 0.5) {
+        const from = renderer.nodes[Math.floor(Math.random() * renderer.nodes.length)];
+        const to = renderer.nodes[Math.floor(Math.random() * renderer.nodes.length)];
+        if (from.id !== to.id) {
+          renderer.edges.push({
+            id: 'eg_' + Math.random().toString(36).slice(2, 12),
+            from: from.id,
+            to: to.id,
+          });
+        }
+      }
+
+      updateStatus();
+    }
+
+    window.autoLayout = function(mode) {
+      if (mode === 'grid') renderer.autoLayout();
+      else if (mode === 'kind') renderer.autoLayoutByKind();
+      else if (mode === 'radial') renderer.autoLayoutRadial();
+      updateStatus();
+    };
+
+    window.toggleTheme = function() {
+      renderer.setTheme(renderer.options.theme === 'dark' ? 'light' : 'dark');
+    };
+
+    window.fitToContent = function() {
+      renderer.fitToContent();
+    };
+
+    window.clearCanvas = function() {
+      renderer.nodes = [];
+      renderer.edges = [];
+      renderer.selected.clear();
+      updateStatus();
+    };
+
+    window.addNodes = addNodes;
+
+    addNodes(5);
+    renderer.fitToContent();
+  </script>
+</body>
+</html>
